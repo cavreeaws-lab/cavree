@@ -57,13 +57,14 @@ export async function middleware(request: NextRequest) {
 
   const loginUrl = new URL("/auth/login", `https://${mainDomain}`)
   const homeUrl = new URL("/", `https://${mainDomain}`)
+  const currentUrl = new URL(pathname, `https://${host || mainDomain}`)
 
   const requireAuth = (allowedRoles: string[]) => {
     if (!session) {
       if (isApiRoute) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
       }
-      loginUrl.searchParams.set("redirect", request.nextUrl.toString())
+      loginUrl.searchParams.set("redirect", currentUrl.toString())
       return NextResponse.redirect(loginUrl)
     }
     if (!allowedRoles.includes(role!)) {
