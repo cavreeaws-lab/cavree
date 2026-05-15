@@ -60,7 +60,14 @@ export async function getSession() {
 
 export async function deleteSession() {
   const cookieStore = cookies()
-  cookieStore.delete("session")
+  cookieStore.set("session", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 0,
+    path: "/",
+    sameSite: "lax",
+    domain: process.env.NODE_ENV === "production" ? `.${process.env.MAIN_DOMAIN || "cavree.com"}` : undefined,
+  })
 }
 
 export async function createResetToken(userId: string) {

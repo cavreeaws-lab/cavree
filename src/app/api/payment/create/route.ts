@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
 
     const order = await prisma.order.findFirst({
       where: { id: orderId, userId: session.userId as string },
+      include: { payment: true },
     })
 
     if (!order) {
@@ -40,8 +41,15 @@ export async function POST(request: NextRequest) {
 
     const razorpayOrder = await instance.orders.create(options)
 
-    await prisma.payment.create({
-      data: {
+    await prisma.payment.upsert({
+      where: { orderId: order.id },
+      update: {
+        method: "RAZORPAY",
+        status: "PENDING",
+        transactionId: razorpayOrder.id,
+        gatewayData: razorpayOrder as any,
+      },
+      create: {
         orderId: order.id,
         amount: order.total,
         method: "RAZORPAY",

@@ -16,6 +16,28 @@ function LoginForm() {
 
   const redirectParam = searchParams.get("redirect")
 
+  const navigateAfterLogin = (target: string) => {
+    if (/^https?:\/\//.test(target)) {
+      window.location.href = target
+      return
+    }
+    router.push(target)
+  }
+
+  const getRoleRedirect = (role: string | undefined) => {
+    const hostname = window.location.hostname
+    const isProductionDomain = hostname === "cavree.com" || hostname.endsWith(".cavree.com")
+    if (!isProductionDomain) {
+      if (role === "SUPER_ADMIN") return "/super-admin/dashboard"
+      if (role === "ADMIN" || role === "FRANCHISEE") return "/admin/dashboard"
+      return "/account/orders"
+    }
+    if (role === "SUPER_ADMIN") return "https://super-admin.cavree.com/super-admin/dashboard"
+    if (role === "ADMIN") return "https://admin.cavree.com/admin/dashboard"
+    if (role === "FRANCHISEE") return "https://franchise.cavree.com/admin/dashboard"
+    return "/account/orders"
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -33,22 +55,9 @@ function LoginForm() {
         toast.success("Login successful!")
 
         if (redirectParam) {
-          router.push(redirectParam)
+          navigateAfterLogin(redirectParam)
         } else {
-          const role = data.user?.role
-          switch (role) {
-            case "FRANCHISEE":
-              router.push("/admin/dashboard")
-              break
-            case "ADMIN":
-              router.push("/admin/dashboard")
-              break
-            case "SUPER_ADMIN":
-              router.push("/super-admin/dashboard")
-              break
-            default:
-              router.push("/account")
-          }
+          navigateAfterLogin(getRoleRedirect(data.user?.role))
         }
         router.refresh()
       } else {

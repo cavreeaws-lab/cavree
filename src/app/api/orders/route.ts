@@ -89,14 +89,22 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (product.quantity < item.quantity) {
+      const variant = item.variantId ? product.variants.find((v: any) => v.id === item.variantId) : null
+      if (item.variantId && !variant) {
         return NextResponse.json(
-          { error: `Insufficient stock for ${product.name}. Available: ${product.quantity}` },
+          { error: `Invalid variant for ${product.name}` },
+          { status: 400 }
+        )
+      }
+      const availableQuantity = variant ? variant.quantity : product.quantity
+      if (availableQuantity < item.quantity) {
+        return NextResponse.json(
+          { error: `Insufficient stock for ${product.name}. Available: ${availableQuantity}` },
           { status: 400 }
         )
       }
 
-      const price = item.variantPrice || product.price
+      const price = variant?.price || product.price
       const total = price * item.quantity
       subtotal += total
 
@@ -106,8 +114,8 @@ export async function POST(request: NextRequest) {
         price,
         quantity: item.quantity,
         total,
-        size: item.size || null,
-        color: item.color || null,
+        size: variant?.size || null,
+        color: variant?.color || null,
         productId: product.id,
       })
     }
@@ -136,10 +144,17 @@ export async function POST(request: NextRequest) {
     const order = await prisma.$transaction(async (tx: any) => {
       // Decrement stock
       for (const item of items as any[]) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { quantity: { decrement: item.quantity } },
-        })
+        if (item.variantId) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { quantity: { decrement: item.quantity } },
+          })
+        } else {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { quantity: { decrement: item.quantity } },
+          })
+        }
       }
 
       return await tx.order.create({

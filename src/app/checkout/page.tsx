@@ -10,13 +10,12 @@ import toast from "react-hot-toast"
 
 export default function CheckoutPage() {
   const { items, getTotalPrice, clearCart } = useCart()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [step, setStep] = useState(1)
-  const [paymentMethod, setPaymentMethod] = useState<"razorpay" | "cod">("razorpay")
+  const [paymentMethod, setPaymentMethod] = useState<"RAZORPAY" | "COD">("COD")
   const [addresses, setAddresses] = useState<any[]>([])
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
   const [placingOrder, setPlacingOrder] = useState(false)
 
   const subtotal = getTotalPrice()
@@ -24,6 +23,12 @@ export default function CheckoutPage() {
   const total = subtotal + shipping
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/auth/login?redirect=/checkout")
+      return
+    }
+    if (authLoading || !user) return
+
     fetch("/api/addresses")
       .then((res) => res.json())
       .then((data) => {
@@ -34,7 +39,7 @@ export default function CheckoutPage() {
         }
       })
       .catch(() => toast.error("Failed to load addresses"))
-  }, [])
+  }, [authLoading, router, user])
 
   if (items.length === 0) {
     return (
@@ -58,9 +63,7 @@ export default function CheckoutPage() {
       const orderItems = items.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
-        variantPrice: item.product.variant?.price || item.product.price,
-        size: item.product.variant?.size || null,
-        color: item.product.variant?.color || null,
+        variantId: item.product.variant?.id,
       }))
 
       const res = await fetch("/api/orders", {
@@ -80,7 +83,7 @@ export default function CheckoutPage() {
         return
       }
 
-      if (paymentMethod === "razorpay") {
+      if (paymentMethod === "RAZORPAY") {
         // Initiate Razorpay payment
         const payRes = await fetch("/api/payment/create", {
           method: "POST",
@@ -177,9 +180,9 @@ export default function CheckoutPage() {
               {addresses.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-cavree-muted font-poppins mb-4">No saved addresses</p>
-                  <button className="bg-cavree-primary text-white px-6 py-2.5 rounded-md text-sm font-medium hover:bg-cavree-primary-light transition-colors">
+                  <Link href="/account/addresses" className="inline-block bg-cavree-primary text-white px-6 py-2.5 rounded-md text-sm font-medium hover:bg-cavree-primary-light transition-colors">
                     Add New Address
-                  </button>
+                  </Link>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -220,12 +223,12 @@ export default function CheckoutPage() {
             <div className="border border-cavree-border rounded-lg p-6">
               <h2 className="font-playfair text-xl font-bold mb-4">Payment Method</h2>
               <div className="space-y-3">
-                <label className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === "razorpay" ? "border-cavree-primary bg-cavree-primary/5" : "border-cavree-border"}`}>
+                <label className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === "RAZORPAY" ? "border-cavree-primary bg-cavree-primary/5" : "border-cavree-border"}`}>
                   <input
                     type="radio"
                     name="payment"
-                    checked={paymentMethod === "razorpay"}
-                    onChange={() => setPaymentMethod("razorpay")}
+                    checked={paymentMethod === "RAZORPAY"}
+                    onChange={() => setPaymentMethod("RAZORPAY")}
                   />
                   <CreditCard size={24} className="text-cavree-primary" />
                   <div className="text-sm font-poppins">
@@ -233,12 +236,12 @@ export default function CheckoutPage() {
                     <p className="text-cavree-muted">Credit/Debit Card, UPI, Net Banking</p>
                   </div>
                 </label>
-                <label className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === "cod" ? "border-cavree-primary bg-cavree-primary/5" : "border-cavree-border"}`}>
+                <label className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === "COD" ? "border-cavree-primary bg-cavree-primary/5" : "border-cavree-border"}`}>
                   <input
                     type="radio"
                     name="payment"
-                    checked={paymentMethod === "cod"}
-                    onChange={() => setPaymentMethod("cod")}
+                    checked={paymentMethod === "COD"}
+                    onChange={() => setPaymentMethod("COD")}
                   />
                   <Truck size={24} className="text-cavree-primary" />
                   <div className="text-sm font-poppins">

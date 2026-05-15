@@ -27,12 +27,18 @@ export const profileUpdateSchema = z.object({
 export const addressSchema = z.object({
   name: z.string().min(1, "Name is required"),
   phone: z.string().min(10, "Invalid phone number"),
-  addressLine1: z.string().min(1, "Address is required"),
+  addressLine1: z.string().optional(),
+  address: z.string().optional(),
   addressLine2: z.string().optional(),
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
   pincode: z.string().regex(/^\d{6}$/, "Pincode must be 6 digits"),
+  country: z.string().optional(),
   isDefault: z.boolean().optional(),
+  type: z.string().optional(),
+}).refine((data) => Boolean(data.addressLine1 || data.address), {
+  message: "Address is required",
+  path: ["addressLine1"],
 })
 
 export const createOrderSchema = z.object({
@@ -44,7 +50,7 @@ export const createOrderSchema = z.object({
     })
   ).min(1, "At least one item is required"),
   addressId: z.string().min(1, "Address is required"),
-  paymentMethod: z.enum(["RAZORPAY", "COD", "CARD", "UPI"]),
+  paymentMethod: z.enum(["RAZORPAY", "COD"]),
   couponCode: z.string().optional(),
   notes: z.string().optional(),
 })

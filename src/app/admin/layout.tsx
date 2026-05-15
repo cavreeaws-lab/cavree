@@ -15,6 +15,7 @@ import {
   BarChart3,
   ChevronLeft,
   MessageCircle,
+  Wallet,
 } from "lucide-react"
 
 const navItems = [
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/admin/content", label: "Content", icon: FileText },
   { href: "/admin/reviews", label: "Reviews", icon: MessageCircle },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
+  { href: "/admin/wallet", label: "Wallet", icon: Wallet },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ]
 

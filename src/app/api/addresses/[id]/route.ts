@@ -35,11 +35,13 @@ export async function PUT(
       data: {
         name: data.name,
         phone: data.phone,
-        address: data.addressLine1,
+        address: data.addressLine1 || data.address!,
         city: data.city,
         state: data.state,
         pincode: data.pincode,
+        country: data.country || "India",
         isDefault: data.isDefault ?? false,
+        type: data.type || "HOME",
       },
     })
 
