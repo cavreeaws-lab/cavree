@@ -1,0 +1,54 @@
+name: Legacy EC2 Deploy Disabled
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run linter
+        run: npm run lint
+      - name: Run tests
+        run: npm run test
+      - name: Build
+        run: npm run build
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER || 'ubuntu' }}
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST '
+            set -e
+            cd /app/cavree
+            git fetch origin
+            git reset --hard origin/main
+            export $(grep -v '^#' .env | xargs)
+            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.prod.yml build --no-cache
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -af --filter "until=24h" || true
+          '
