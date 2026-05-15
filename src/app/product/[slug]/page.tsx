@@ -62,6 +62,18 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!product) return
+    let variant = undefined
+    if (selectedSize || selectedColor) {
+      const match = product.variants.find((v: any) => {
+        if (selectedSize && selectedColor) return v.size === selectedSize && v.color === selectedColor
+        if (selectedSize) return v.size === selectedSize
+        if (selectedColor) return v.color === selectedColor
+        return false
+      })
+      if (match) {
+        variant = { id: match.id, size: match.size, color: match.color, price: match.price }
+      }
+    }
     addItem(
       {
         id: product.id,
@@ -71,7 +83,7 @@ export default function ProductDetailPage() {
         image: product.images[0]?.url || "/images/placeholder.jpg",
       },
       quantity,
-      selectedSize || selectedColor ? { id: `${selectedSize}-${selectedColor}`, size: selectedSize || undefined, color: selectedColor || undefined } : undefined
+      variant
     )
     toast.success("Added to cart!")
   }
