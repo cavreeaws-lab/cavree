@@ -46,6 +46,7 @@ export async function createSession(userId: string, email: string, role: string)
     maxAge: 60 * 60 * 24 * 7,
     path: "/",
     sameSite: "lax",
+    domain: process.env.NODE_ENV === "production" ? `.${process.env.MAIN_DOMAIN || "cavree.com"}` : undefined,
   })
   return token
 }
