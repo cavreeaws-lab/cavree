@@ -65,6 +65,8 @@ model User {
   cart          Cart?
   wishlist      Wishlist?
   reviews       Review[]
+  payouts       Payout[]
+  walletTransactions WalletTransaction[]
 
   @@map("users")
 }
@@ -90,6 +92,7 @@ model Franchise {
 
   ownerId     String   @unique
   owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  payouts     Payout[]
 
   products    Product[]
   orders      Order[]
@@ -147,6 +150,7 @@ model Product {
   cartItems   CartItem[]
   wishlistItems WishlistItem[]
   reviews     Review[]
+  recentlyViewed RecentlyViewed[]
 
   @@map("products")
 }
@@ -399,4 +403,127 @@ model FranchiseApplication {
   updatedAt  DateTime @updatedAt
 
   @@map("franchise_applications")
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  title     String
+  image     String
+  link      String?
+  position  String   @default("HOME_TOP")
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("banners")
+}
+
+model Page {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String?
+  metaTitle   String?
+  metaDescription String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("pages")
+}
+
+model StockAdjustment {
+  id        String   @id @default(cuid())
+  quantity  Int
+  reason    String
+  productId String
+  variantId String?
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@map("stock_adjustments")
+}
+
+model CustomerNote {
+  id        String   @id @default(cuid())
+  note      String
+  userId    String
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customer_notes")
+}
+
+model WalletTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Float
+  type      String
+  status    String   @default("PENDING")
+  orderId   String?
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("wallet_transactions")
+}
+
+model Payout {
+  id          String   @id @default(cuid())
+  franchiseId String
+  userId      String
+  amount      Float
+  commission  Float    @default(0)
+  status      String   @default("PENDING")
+  method      String?
+  accountDetails Json?
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  franchise   Franchise @relation(fields: [franchiseId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("payouts")
+}
+
+model RecentlyViewed {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+  @@map("recently_viewed")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@map("activity_logs")
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  subject   String
+  body      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("email_templates")
 }

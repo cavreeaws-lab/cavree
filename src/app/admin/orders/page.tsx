@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import toast from "react-hot-toast"
+import { Search, ChevronLeft, ChevronRight } from "lucide-react"
 
 const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800",
@@ -20,35 +21,53 @@ export default function AdminOrdersPage() {
   const [filter, setFilter] = useState("ALL")
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const limit = 10
 
   useEffect(() => {
-    fetch("/api/admin/orders")
+    setLoading(true)
+    const params = new URLSearchParams()
+    if (search) params.set("search", search)
+    if (filter !== "ALL") params.set("status", filter)
+    params.set("page", String(page))
+    params.set("limit", String(limit))
+    fetch(`/api/admin/orders?${params.toString()}`)
       .then((res) => res.json())
       .then((data) => {
         setOrders(data.orders || [])
+        setTotal(data.total || 0)
         setLoading(false)
       })
       .catch(() => {
         toast.error("Failed to load orders")
         setLoading(false)
       })
-  }, [])
-
-  const filteredOrders = filter === "ALL" ? orders : orders.filter((o: any) => o.status === filter)
+  }, [search, filter, page])
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {["ALL", "PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"].map((status) => (
             <button
               key={status}
-              onClick={() => setFilter(status)}
+              onClick={() => { setFilter(status); setPage(1) }}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === status ? "bg-cavree-primary text-white" : "bg-white border border-cavree-border text-cavree-muted hover:text-cavree-foreground"}`}
             >
               {status}
             </button>
           ))}
+        </div>
+        <div className="relative w-full sm:w-64">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-cavree-muted" />
+          <input
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            placeholder="Search order or customer..."
+            className="w-full border border-cavree-border rounded-md pl-9 pr-3 py-2 text-sm outline-none focus:border-cavree-primary"
+          />
         </div>
       </div>
 
@@ -66,7 +85,7 @@ export default function AdminOrdersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-cavree-border">
-              {filteredOrders.map((order: any) => (
+              {orders.map((order: any) => (
                 <tr key={order.id} className="hover:bg-cavree-light/50 transition-colors">
                   <td className="px-6 py-4 text-sm font-medium">
                     <Link href={`/admin/orders/${order.id}`} className="text-cavree-primary hover:underline">
@@ -117,6 +136,14 @@ export default function AdminOrdersPage() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex items-center justify-between px-6 py-3 border-t border-cavree-border text-sm font-poppins">
+          <p className="text-cavree-muted">{total} orders</p>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-cavree-light disabled:opacity-30"><ChevronLeft size={18} /></button>
+            <span className="text-sm">Page {page} of {Math.max(1, Math.ceil(total / limit))}</span>
+            <button onClick={() => setPage((p) => (p * limit < total ? p + 1 : p))} disabled={page * limit >= total} className="p-1 rounded hover:bg-cavree-light disabled:opacity-30"><ChevronRight size={18} /></button>
+          </div>
         </div>
       </div>
     </div>

@@ -5,17 +5,38 @@ import { validate, createUserSchema } from "@/lib/validators"
 
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await requireAuth(["SUPER_ADMIN"])
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true, name: true, email: true, role: true, phone: true,
-        createdAt: true, _count: { select: { orders: true } },
-      },
-    })
-    return NextResponse.json({ users })
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get("search")
+    const role = searchParams.get("role")
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "10")
+
+    const where: any = {}
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ]
+    }
+    if (role && role !== "ALL") where.role = role
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true, name: true, email: true, role: true, phone: true,
+          createdAt: true, _count: { select: { orders: true } },
+        },
+      }),
+      prisma.user.count({ where }),
+    ])
+    return NextResponse.json({ users, total, page, limit })
   } catch (error: any) {
     if (error.message === "Unauthorized" || error.message === "Forbidden") {
       return NextResponse.json({ error: error.message }, { status: 401 })

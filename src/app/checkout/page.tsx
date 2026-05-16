@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/hooks/useCart"
 import { useAuth } from "@/hooks/useAuth"
-import { ChevronRight, CreditCard, Truck, CheckCircle, Loader2 } from "lucide-react"
+import { ChevronRight, CreditCard, Truck, CheckCircle, Loader2, MapPin, Plus, X, CalendarDays } from "lucide-react"
 import toast from "react-hot-toast"
 
 export default function CheckoutPage() {
@@ -17,10 +17,24 @@ export default function CheckoutPage() {
   const [addresses, setAddresses] = useState<any[]>([])
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null)
   const [placingOrder, setPlacingOrder] = useState(false)
+  const [showAddressModal, setShowAddressModal] = useState(false)
+  const [savingAddress, setSavingAddress] = useState(false)
+  const [addressForm, setAddressForm] = useState({ name: "", phone: "", address: "", city: "", state: "", pincode: "", isDefault: false })
+  const [couponCode, setCouponCode] = useState("")
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null)
+  const [applyingCoupon, setApplyingCoupon] = useState(false)
 
   const subtotal = getTotalPrice()
   const shipping = subtotal > 5000 ? 0 : 150
-  const total = subtotal + shipping
+  const tax = Math.round(subtotal * 0.05) // 5% GST placeholder
+  const discount = appliedCoupon ? Math.min(appliedCoupon.discount, subtotal) : 0
+  const total = subtotal + shipping + tax - discount
+
+  const estimatedDelivery = () => {
+    const d = new Date()
+    d.setDate(d.getDate() + 5)
+    return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })
+  }
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -73,6 +87,7 @@ export default function CheckoutPage() {
           items: orderItems,
           addressId: selectedAddress,
           paymentMethod,
+          couponCode: appliedCoupon ? appliedCoupon.code : undefined,
         }),
       })
 
@@ -207,6 +222,12 @@ export default function CheckoutPage() {
                 </div>
               )}
               <button
+                onClick={() => setShowAddressModal(true)}
+                className="mt-4 w-full border border-cavree-border py-2.5 rounded-md text-sm font-medium hover:bg-cavree-light transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus size={16} /> Add New Address
+              </button>
+              <button
                 onClick={() => {
                   if (!selectedAddress) {
                     toast.error("Please select an address")
@@ -214,7 +235,7 @@ export default function CheckoutPage() {
                   }
                   setStep(2)
                 }}
-                className="mt-6 w-full bg-cavree-primary hover:bg-cavree-primary-light text-white py-3 rounded-md font-medium transition-colors"
+                className="mt-4 w-full bg-cavree-primary hover:bg-cavree-primary-light text-white py-3 rounded-md font-medium transition-colors"
               >
                 Continue to Payment
               </button>
@@ -298,6 +319,16 @@ export default function CheckoutPage() {
                   <span className="text-cavree-muted">Shipping</span>
                   <span>{shipping === 0 ? "FREE" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(shipping)}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-cavree-muted">Tax (5% GST)</span>
+                  <span>{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(tax)}</span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span className="font-medium">Discount</span>
+                    <span className="font-medium">-{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(discount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-semibold">
                   <span>Total</span>
                   <span className="font-montserrat text-lg">{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(total)}</span>
@@ -333,6 +364,46 @@ export default function CheckoutPage() {
         <div className="lg:w-80">
           <div className="border border-cavree-border rounded-lg p-6">
             <h2 className="font-playfair text-lg font-bold mb-4">Order Summary</h2>
+
+            {/* Coupon */}
+            <div className="flex gap-2 mb-4">
+              <div className="flex-1 relative">
+                <input
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  placeholder="Coupon code"
+                  disabled={!!appliedCoupon}
+                  className="w-full border border-cavree-border rounded-md px-3 py-2 text-sm outline-none focus:border-cavree-primary disabled:bg-cavree-light"
+                />
+              </div>
+              {appliedCoupon ? (
+                <button onClick={() => { setAppliedCoupon(null); setCouponCode("") }} className="text-red-500 text-sm font-medium hover:underline px-2">Remove</button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    if (!couponCode.trim()) return
+                    setApplyingCoupon(true)
+                    try {
+                      const res = await fetch("/api/coupons/validate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ code: couponCode.trim(), total: subtotal }),
+                      })
+                      const data = await res.json()
+                      if (!res.ok) { toast.error(data.error || "Invalid coupon"); return }
+                      setAppliedCoupon({ code: couponCode.trim(), discount: data.discount })
+                      toast.success(`Coupon applied: ${new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(data.discount)} off`)
+                    } catch { toast.error("Failed to apply coupon") }
+                    finally { setApplyingCoupon(false) }
+                  }}
+                  disabled={applyingCoupon || !couponCode.trim()}
+                  className="bg-cavree-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-cavree-primary-light disabled:opacity-50"
+                >
+                  {applyingCoupon ? "..." : "Apply"}
+                </button>
+              )}
+            </div>
+
             <div className="space-y-2 text-sm font-poppins">
               <div className="flex justify-between">
                 <span className="text-cavree-muted">Items</span>
@@ -346,14 +417,79 @@ export default function CheckoutPage() {
                 <span className="text-cavree-muted">Shipping</span>
                 <span>{shipping === 0 ? "FREE" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(shipping)}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-cavree-muted">Tax (5% GST)</span>
+                <span>{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(tax)}</span>
+              </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span className="font-medium">Discount</span>
+                  <span className="font-medium">-{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(discount)}</span>
+                </div>
+              )}
               <div className="border-t border-cavree-border pt-2 flex justify-between font-semibold">
                 <span>Total</span>
                 <span className="font-montserrat">{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(total)}</span>
               </div>
             </div>
+            <div className="mt-4 flex items-center gap-2 text-xs text-cavree-muted font-poppins">
+              <CalendarDays size={14} /> Estimated delivery by {estimatedDelivery()}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Address Modal */}
+      {showAddressModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setShowAddressModal(false)} className="absolute right-4 top-4 text-cavree-muted hover:text-cavree-foreground">
+              <X size={20} />
+            </button>
+            <h3 className="font-playfair text-lg font-bold mb-4 flex items-center gap-2"><MapPin size={18} /> Add Address</h3>
+            <div className="space-y-3 font-poppins text-sm">
+              {["name","phone","address","city","state","pincode"].map((field) => (
+                <div key={field}>
+                  <label className="block text-xs text-cavree-muted mb-1 capitalize">{field}</label>
+                  <input
+                    value={(addressForm as any)[field]}
+                    onChange={(e) => setAddressForm((prev) => ({ ...prev, [field]: e.target.value }))}
+                    className="w-full border border-cavree-border rounded-md px-3 py-2 outline-none focus:border-cavree-primary"
+                  />
+                </div>
+              ))}
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={addressForm.isDefault}
+                  onChange={(e) => setAddressForm((prev) => ({ ...prev, isDefault: e.target.checked }))}
+                />
+                <span className="text-sm">Set as default</span>
+              </label>
+            </div>
+            <button
+              onClick={async () => {
+                setSavingAddress(true)
+                try {
+                  const res = await fetch("/api/addresses", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(addressForm) })
+                  const data = await res.json()
+                  if (!res.ok) { toast.error(data.error || "Failed to save"); return }
+                  setAddresses((prev) => [...prev, data.address])
+                  setSelectedAddress(data.address.id)
+                  setShowAddressModal(false)
+                  setAddressForm({ name: "", phone: "", address: "", city: "", state: "", pincode: "", isDefault: false })
+                  toast.success("Address added")
+                } catch { toast.error("Failed to save") }
+                finally { setSavingAddress(false) }
+              }}
+              disabled={savingAddress}
+              className="mt-4 w-full bg-cavree-primary hover:bg-cavree-primary-light text-white py-2.5 rounded-md font-medium transition-colors disabled:opacity-50"
+            >
+              {savingAddress ? "Saving..." : "Save Address"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,19 +1,49 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Store, ShoppingCart, Package, Users, IndianRupee, TrendingUp } from "lucide-react"
 import toast from "react-hot-toast"
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts"
+
+const STATUS_COLORS: Record<string, string> = {
+  PENDING: "#fbbf24",
+  CONFIRMED: "#3b82f6",
+  PROCESSING: "#a855f7",
+  SHIPPED: "#6366f1",
+  DELIVERED: "#22c55e",
+  CANCELLED: "#ef4444",
+}
 
 export default function SuperAdminDashboardPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [ordersData, setOrdersData] = useState<any>(null)
 
   useEffect(() => {
     fetch("/api/super-admin/analytics")
       .then((res) => res.json())
       .then((d) => { setData(d); setLoading(false) })
       .catch(() => { toast.error("Failed to load analytics"); setLoading(false) })
+  }, [])
+
+  useEffect(() => {
+    fetch("/api/super-admin/orders")
+      .then((res) => res.json())
+      .then((d) => setOrdersData(d))
+      .catch(() => {})
   }, [])
 
   if (loading || !data) {
@@ -35,6 +65,19 @@ export default function SuperAdminDashboardPage() {
     { label: "Platform Revenue", value: `₹${(s.totalRevenue / 10000000).toFixed(1)}Cr`, change: "+15%", icon: IndianRupee },
   ]
   const topFranchises = data.topFranchises || []
+
+  const statusData = useMemo(() => {
+    const orders = ordersData?.orders || []
+    const counts: Record<string, number> = {}
+    orders.forEach((o: any) => {
+      counts[o.status] = (counts[o.status] || 0) + 1
+    })
+    return ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"].map((status) => ({
+      name: status,
+      value: counts[status] || 0,
+    }))
+  }, [ordersData])
+
   return (
     <div className="space-y-6">
       {/* Stats */}
@@ -57,6 +100,55 @@ export default function SuperAdminDashboardPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white border border-cavree-border rounded-lg p-6">
+          <h3 className="font-playfair text-base font-bold mb-4">Revenue by Franchise</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={topFranchises}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tickFormatter={(v) => `₹${v.toLocaleString("en-IN")}`} />
+                <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString("en-IN")}`} />
+                <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white border border-cavree-border rounded-lg p-6">
+          <h3 className="font-playfair text-base font-bold mb-4">Orders by Status</h3>
+          <div className="h-64">
+            {ordersData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {statusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || "#ccc"} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: any, n: any) => [`${v} orders`, n]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-sm text-cavree-muted">
+                Loading chart...
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Top Franchises */}

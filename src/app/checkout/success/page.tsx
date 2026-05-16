@@ -4,7 +4,7 @@ import { Suspense } from "react"
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { CheckCircle, Package, ShoppingBag } from "lucide-react"
+import { CheckCircle, Package, ShoppingBag, CalendarDays, MapPin } from "lucide-react"
 
 function SuccessContent() {
   const searchParams = useSearchParams()
@@ -74,17 +74,38 @@ function SuccessContent() {
             ))}
           </div>
 
-          <div className="border-t border-cavree-border pt-4 mt-4 flex items-center gap-2 text-sm text-cavree-muted font-poppins">
-            <Package size={16} />
-            <span>Status: <span className="font-medium text-cavree-foreground">{order.status}</span></span>
+          <div className="border-t border-cavree-border pt-4 mt-4 space-y-2 text-sm text-cavree-muted font-poppins">
+            <div className="flex items-center gap-2">
+              <Package size={16} />
+              <span>Status: <span className="font-medium text-cavree-foreground">{order.status}</span></span>
+            </div>
+            {order.address && (
+              <div className="flex items-center gap-2">
+                <MapPin size={16} />
+                <span>Delivering to: {order.address.city}, {order.address.state}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <CalendarDays size={16} />
+              <span>Estimated delivery by {new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}</span>
+            </div>
           </div>
         </div>
       )}
 
       <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+        {order && (
+          <Link
+            href={`/account/orders/${order.id}`}
+            className="inline-flex items-center justify-center gap-2 bg-cavree-primary text-white px-6 py-3 rounded-md font-medium hover:bg-cavree-primary-light transition-colors"
+          >
+            <Package size={18} />
+            Track Order
+          </Link>
+        )}
         <Link
           href="/account/orders"
-          className="inline-flex items-center justify-center gap-2 bg-cavree-primary text-white px-6 py-3 rounded-md font-medium hover:bg-cavree-primary-light transition-colors"
+          className="inline-flex items-center justify-center gap-2 border border-cavree-border px-6 py-3 rounded-md font-medium hover:bg-cavree-light transition-colors"
         >
           <Package size={18} />
           View My Orders

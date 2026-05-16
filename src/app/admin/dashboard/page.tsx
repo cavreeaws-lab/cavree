@@ -1,9 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { ShoppingCart, Package, Users, IndianRupee, TrendingUp, TrendingDown } from "lucide-react"
 import toast from "react-hot-toast"
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  BarChart,
+  Bar,
+} from "recharts"
 
 const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800",
@@ -52,6 +63,29 @@ export default function AdminDashboardPage() {
   ]
 
   const recentOrders = data.recentOrders || []
+
+  const revenueTrend = useMemo(() => {
+    const days: { day: string; revenue: number }[] = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const dayName = d.toLocaleDateString("en-IN", { weekday: "short" })
+      const dateStr = d.toISOString().split("T")[0]
+      const revenue = recentOrders
+        .filter((o: any) => o.createdAt && o.createdAt.split("T")[0] === dateStr)
+        .reduce((sum: number, o: any) => sum + (o.total || 0), 0)
+      days.push({ day: dayName, revenue })
+    }
+    return days
+  }, [recentOrders])
+
+  const topProductsChart = useMemo(() => {
+    return (data.topProducts || []).map((p: any) => ({
+      name: p.name,
+      revenue: p.revenue || 0,
+    }))
+  }, [data])
+
   return (
     <div className="space-y-6">
       {/* Stats */}
@@ -80,6 +114,39 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white border border-cavree-border rounded-lg p-6">
+          <h3 className="font-playfair text-base font-bold mb-4">Revenue Trend (Last 7 Days)</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={revenueTrend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" />
+                <YAxis tickFormatter={(v) => `₹${v.toLocaleString("en-IN")}`} />
+                <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString("en-IN")}`} />
+                <Line type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={2} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white border border-cavree-border rounded-lg p-6">
+          <h3 className="font-playfair text-base font-bold mb-4">Top Products</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={topProductsChart}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} angle={-20} textAnchor="end" height={60} />
+                <YAxis tickFormatter={(v) => `₹${v.toLocaleString("en-IN")}`} />
+                <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString("en-IN")}`} />
+                <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
 
       {/* Recent Orders */}

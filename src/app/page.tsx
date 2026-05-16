@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { useCart } from "@/hooks/useCart"
 import { ArrowRight, ShoppingBag, Star, Truck, Shield, Headphones } from "lucide-react"
 import toast from "react-hot-toast"
+import RecentlyViewed from "@/components/RecentlyViewed"
 
 const heroSlides = [
   {
@@ -109,6 +110,7 @@ export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [products, setProducts] = useState<any[]>([])
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([])
+  const [banners, setBanners] = useState<any[]>([])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -126,6 +128,11 @@ export default function HomePage() {
     fetch("/api/products?limit=4&isFeatured=true")
       .then((res) => res.json())
       .then((data) => setFeaturedProducts(data.products || []))
+      .catch(console.error)
+
+    fetch("/api/banners")
+      .then((res) => res.json())
+      .then((data) => setBanners(data.banners || []))
       .catch(console.error)
   }, [])
 
@@ -259,6 +266,25 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Promotional Banners */}
+      {banners.length > 0 && (
+        <section className="py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {banners.slice(0, 2).map((banner) => (
+                <Link key={banner.id} href={banner.link || "/shop"} className="group relative aspect-[21/9] rounded-lg overflow-hidden bg-cavree-light">
+                  <Image src={banner.image} alt={banner.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
+                  <div className="absolute bottom-4 left-4 text-white">
+                    <p className="font-playfair text-lg font-bold">{banner.title}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* New Arrivals */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -281,6 +307,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <RecentlyViewed />
 
       {/* Franchise CTA */}
       <section className="py-20 relative overflow-hidden">

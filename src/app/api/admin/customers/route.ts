@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
+    const search = searchParams.get("search")
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "10")
 
@@ -35,16 +36,25 @@ export async function GET(request: NextRequest) {
     })
 
     const userIds = customerStats.map((s: any) => s.userId)
+    const userWhere: any = { id: { in: userIds } }
+    if (search) {
+      userWhere.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+        { phone: { contains: search, mode: "insensitive" } },
+      ]
+    }
     const users = await prisma.user.findMany({
-      where: { id: { in: userIds } },
+      where: userWhere,
       select: { id: true, name: true, email: true, phone: true },
     })
 
     const userMap = new Map(users.map((u: any) => [u.id, u]))
 
-    const customers = customerStats
+    let customers = customerStats
       .map((s: any) => {
         const u = userMap.get(s.userId)
+        if (!u) return null
         return {
           id: s.userId,
           name: u?.name || "",
@@ -54,9 +64,12 @@ export async function GET(request: NextRequest) {
           totalSpent: s._sum.total || 0,
         }
       })
-      .slice((page - 1) * limit, page * limit)
+      .filter(Boolean)
 
-    return NextResponse.json({ customers, total: customerStats.length, page, limit })
+    const total = customers.length
+    customers = customers.slice((page - 1) * limit, page * limit)
+
+    return NextResponse.json({ customers, total, page, limit })
   } catch (error: any) {
     if (error.message === "Unauthorized" || error.message === "Forbidden") {
       return NextResponse.json({ error: error.message }, { status: 401 })

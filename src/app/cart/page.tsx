@@ -2,11 +2,16 @@
 
 import Link from "next/link"
 import Image from "next/image"
+import { useState } from "react"
 import { useCart } from "@/hooks/useCart"
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from "lucide-react"
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Tag, CheckCircle } from "lucide-react"
+import toast from "react-hot-toast"
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getTotalPrice, clearCart } = useCart()
+  const [couponCode, setCouponCode] = useState("")
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null)
+  const [applyingCoupon, setApplyingCoupon] = useState(false)
 
   if (items.length === 0) {
     return (
@@ -26,7 +31,37 @@ export default function CartPage() {
 
   const subtotal = getTotalPrice()
   const shipping = subtotal > 5000 ? 0 : 150
-  const total = subtotal + shipping
+  const tax = Math.round(subtotal * 0.05)
+  const discount = appliedCoupon ? Math.min(appliedCoupon.discount, subtotal) : 0
+  const total = subtotal + shipping + tax - discount
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return
+    setApplyingCoupon(true)
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponCode.trim(), total: subtotal }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || "Invalid coupon")
+        return
+      }
+      setAppliedCoupon({ code: couponCode.trim(), discount: data.discount })
+      toast.success(`Coupon applied: ${new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(data.discount)} off`)
+    } catch {
+      toast.error("Failed to apply coupon")
+    } finally {
+      setApplyingCoupon(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponCode("")
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -106,8 +141,38 @@ export default function CartPage() {
 
         {/* Order Summary */}
         <div className="lg:w-96">
-          <div className="border border-cavree-border rounded-lg p-6">
+          <div className="border border-cavree-border rounded-lg p-6 lg:sticky lg:top-24">
             <h2 className="font-playfair text-xl font-bold mb-4">Order Summary</h2>
+            {/* Coupon */}
+            <div className="flex gap-2 mb-4">
+              <div className="flex-1 relative">
+                <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-cavree-muted" />
+                <input
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  placeholder="Coupon code"
+                  disabled={!!appliedCoupon}
+                  className="w-full border border-cavree-border rounded-md pl-9 pr-3 py-2 text-sm outline-none focus:border-cavree-primary disabled:bg-cavree-light"
+                />
+              </div>
+              {appliedCoupon ? (
+                <button onClick={handleRemoveCoupon} className="text-red-500 text-sm font-medium hover:underline px-2">Remove</button>
+              ) : (
+                <button
+                  onClick={handleApplyCoupon}
+                  disabled={applyingCoupon || !couponCode.trim()}
+                  className="bg-cavree-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-cavree-primary-light disabled:opacity-50"
+                >
+                  {applyingCoupon ? "..." : "Apply"}
+                </button>
+              )}
+            </div>
+            {appliedCoupon && (
+              <div className="flex items-center gap-1 text-sm text-green-600 font-poppins mb-3">
+                <CheckCircle size={14} /> Coupon <strong>{appliedCoupon.code}</strong> applied
+              </div>
+            )}
+
             <div className="space-y-3 text-sm font-poppins">
               <div className="flex justify-between">
                 <span className="text-cavree-muted">Subtotal</span>
@@ -119,6 +184,16 @@ export default function CartPage() {
                   {shipping === 0 ? "FREE" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(shipping)}
                 </span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-cavree-muted">Tax (5% GST)</span>
+                <span className="font-medium">{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(tax)}</span>
+              </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span className="font-medium">Discount</span>
+                  <span className="font-medium">-{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(discount)}</span>
+                </div>
+              )}
               <div className="border-t border-cavree-border pt-3 flex justify-between">
                 <span className="font-semibold">Total</span>
                 <span className="font-montserrat font-bold text-lg">

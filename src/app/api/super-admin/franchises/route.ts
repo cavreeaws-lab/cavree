@@ -5,14 +5,37 @@ import { validate, franchiseSchema } from "@/lib/validators"
 
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await requireAuth(["SUPER_ADMIN"])
-    const franchises = await prisma.franchise.findMany({
-      include: { owner: { select: { name: true, email: true } }, _count: { select: { products: true } } },
-      orderBy: { createdAt: "desc" },
-    })
-    return NextResponse.json({ franchises })
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get("search")
+    const status = searchParams.get("status")
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "10")
+
+    const where: any = {}
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { city: { contains: search, mode: "insensitive" } },
+        { owner: { name: { contains: search, mode: "insensitive" } } },
+      ]
+    }
+    if (status === "active") where.isActive = true
+    if (status === "inactive") where.isActive = false
+
+    const [franchises, total] = await Promise.all([
+      prisma.franchise.findMany({
+        where,
+        include: { owner: { select: { name: true, email: true } }, _count: { select: { products: true } } },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.franchise.count({ where }),
+    ])
+    return NextResponse.json({ franchises, total, page, limit })
   } catch (error: any) {
     if (error.message === "Unauthorized" || error.message === "Forbidden") {
       return NextResponse.json({ error: error.message }, { status: 401 })

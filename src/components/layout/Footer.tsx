@@ -75,11 +75,11 @@ export function Footer() {
           <div>
             <h4 className="font-montserrat font-semibold text-sm mb-4 tracking-wide">HELP</h4>
             <ul className="space-y-2.5 text-sm text-cavree-muted-light font-poppins">
-              <li><Link href="/contact" className="hover:text-white transition-colors">Shipping Info</Link></li>
-              <li><Link href="/contact" className="hover:text-white transition-colors">Returns & Exchanges</Link></li>
-              <li><Link href="/contact" className="hover:text-white transition-colors">Size Guide</Link></li>
-              <li><Link href="/contact" className="hover:text-white transition-colors">FAQ</Link></li>
-              <li><Link href="/contact" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/shipping" className="hover:text-white transition-colors">Shipping Info</Link></li>
+              <li><Link href="/returns" className="hover:text-white transition-colors">Returns & Exchanges</Link></li>
+              <li><Link href="/size-guide" className="hover:text-white transition-colors">Size Guide</Link></li>
+              <li><Link href="/faq" className="hover:text-white transition-colors">FAQ</Link></li>
+              <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
             </ul>
           </div>
         </div>
@@ -92,9 +92,9 @@ export function Footer() {
             &copy; 2024 Cavree. All rights reserved.
           </p>
           <div className="flex gap-4 text-xs text-cavree-muted-light font-poppins">
-            <Link href="/contact" className="hover:text-white transition-colors">Terms</Link>
-            <Link href="/contact" className="hover:text-white transition-colors">Privacy</Link>
-            <Link href="/contact" className="hover:text-white transition-colors">Cookies</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <Link href="/faq" className="hover:text-white transition-colors">FAQ</Link>
           </div>
         </div>
       </div>

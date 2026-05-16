@@ -5,7 +5,7 @@ import Image from "next/image"
 import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { useCart } from "@/hooks/useCart"
-import { Filter, ChevronDown, Grid3X3, LayoutList, ShoppingBag } from "lucide-react"
+import { Filter, ChevronDown, Grid3X3, LayoutList, ShoppingBag, ChevronLeft, ChevronRight } from "lucide-react"
 import toast from "react-hot-toast"
 
 function ShopContent() {
@@ -18,6 +18,9 @@ function ShopContent() {
   const [sort, setSort] = useState("newest")
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [priceRange, setPriceRange] = useState({ min: "", max: "" })
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const limit = 12
 
   const categoryFilter = searchParams.get("category")
   const searchQuery = searchParams.get("search")
@@ -30,15 +33,22 @@ function ShopContent() {
     if (priceRange.min) params.set("minPrice", priceRange.min)
     if (priceRange.max) params.set("maxPrice", priceRange.max)
     params.set("sort", sort)
+    params.set("page", String(page))
+    params.set("limit", String(limit))
 
     fetch(`/api/products?${params}`)
       .then((res) => res.json())
       .then((data) => {
         setProducts(data.products || [])
+        setTotal(data.total || 0)
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [categoryFilter, searchQuery, sort, priceRange])
+  }, [categoryFilter, searchQuery, sort, priceRange, page])
+
+  useEffect(() => {
+    setPage(1)
+  }, [categoryFilter, searchQuery, priceRange.min, priceRange.max, sort])
 
   useEffect(() => {
     fetch("/api/categories")
@@ -228,6 +238,18 @@ function ShopContent() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {total > limit && (
+            <div className="flex items-center justify-between mt-8 pt-4 border-t border-cavree-border text-sm font-poppins">
+              <p className="text-cavree-muted">{total} products</p>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-cavree-light disabled:opacity-30"><ChevronLeft size={18} /></button>
+                <span className="text-sm">Page {page} of {Math.max(1, Math.ceil(total / limit))}</span>
+                <button onClick={() => setPage((p) => (p * limit < total ? p + 1 : p))} disabled={page * limit >= total} className="p-1 rounded hover:bg-cavree-light disabled:opacity-30"><ChevronRight size={18} /></button>
+              </div>
             </div>
           )}
         </div>
