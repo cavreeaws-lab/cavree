@@ -4,6 +4,8 @@ import { requireAuth } from "@/lib/auth"
 import { validate } from "@/lib/validators"
 import { z } from "zod"
 
+export const dynamic = "force-dynamic"
+
 const couponSchema = z.object({
   code: z.string().min(1),
   description: z.string().optional(),

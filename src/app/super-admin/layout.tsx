@@ -13,10 +13,12 @@ import {
   Settings,
   ChevronLeft,
   Shield,
+  ClipboardList,
 } from "lucide-react"
 
 const navItems = [
   { href: "/super-admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/super-admin/franchise-applications", label: "Applications", icon: ClipboardList },
   { href: "/super-admin/franchises", label: "Franchises", icon: Store },
   { href: "/super-admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/super-admin/products", label: "Products", icon: Package },

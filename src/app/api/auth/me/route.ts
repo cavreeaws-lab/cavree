@@ -3,6 +3,8 @@ import { getSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { validate, profileUpdateSchema } from "@/lib/validators"
 
+export const dynamic = "force-dynamic"
+
 export async function GET() {
   try {
     const session = await getSession()

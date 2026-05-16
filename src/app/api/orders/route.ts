@@ -5,6 +5,8 @@ import { rateLimit } from "@/lib/rate-limit"
 import { validate, createOrderSchema } from "@/lib/validators"
 import { sendOrderConfirmationEmail } from "@/lib/email"
 
+export const dynamic = "force-dynamic"
+
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth()
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     let subtotal = 0
     const orderItemsData: any[] = []
-    const franchiseId = products[0]?.franchiseId
+    const franchiseIds = new Set<string>()
 
     for (const item of items as any[]) {
       const product: any = productMap.get(item.productId)
@@ -104,7 +106,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const price = variant?.price || product.price
+      const price = variant?.price ?? product.price
       const total = price * item.quantity
       subtotal += total
 
@@ -117,24 +119,45 @@ export async function POST(request: NextRequest) {
         size: variant?.size || null,
         color: variant?.color || null,
         productId: product.id,
+        variantId: item.variantId || null,
       })
+
+      if (product.franchiseId) {
+        franchiseIds.add(product.franchiseId)
+      }
     }
+
+    if (franchiseIds.size === 0) {
+      return NextResponse.json({ error: "No valid franchise for these products" }, { status: 400 })
+    }
+    if (franchiseIds.size > 1) {
+      return NextResponse.json({ error: "Items must be from the same franchise" }, { status: 400 })
+    }
+    const franchiseId = Array.from(franchiseIds)[0]
 
     const shipping = subtotal > 5000 ? 0 : 150
     let discount = 0
+    let appliedCoupon = null
 
     if (couponCode) {
       const coupon = await prisma.coupon.findUnique({ where: { code: couponCode } })
+      const now = new Date()
       if (coupon && coupon.isActive && subtotal >= coupon.minOrder) {
+        if (coupon.startDate > now) {
+          return NextResponse.json({ error: "Coupon is not yet active" }, { status: 400 })
+        }
+        if (coupon.endDate && coupon.endDate < now) {
+          return NextResponse.json({ error: "Coupon has expired" }, { status: 400 })
+        }
+        if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
+          return NextResponse.json({ error: "Coupon usage limit reached" }, { status: 400 })
+        }
         if (coupon.type === "PERCENTAGE") {
           discount = Math.min((subtotal * coupon.value) / 100, coupon.maxDiscount || Infinity)
         } else {
           discount = coupon.value
         }
-        await prisma.coupon.update({
-          where: { id: coupon.id },
-          data: { usageCount: { increment: 1 } },
-        })
+        appliedCoupon = coupon
       }
     }
 
@@ -142,19 +165,32 @@ export async function POST(request: NextRequest) {
     const orderNumber = `ORD-${Date.now()}`
 
     const order = await prisma.$transaction(async (tx: any) => {
-      // Decrement stock
+      // Decrement stock with guard to prevent negative inventory under concurrency
       for (const item of items as any[]) {
         if (item.variantId) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
+          const result = await tx.productVariant.updateMany({
+            where: { id: item.variantId, quantity: { gte: item.quantity } },
             data: { quantity: { decrement: item.quantity } },
           })
+          if (result.count === 0) {
+            throw new Error(`Insufficient stock for variant ${item.variantId}`)
+          }
         } else {
-          await tx.product.update({
-            where: { id: item.productId },
+          const result = await tx.product.updateMany({
+            where: { id: item.productId, quantity: { gte: item.quantity } },
             data: { quantity: { decrement: item.quantity } },
           })
+          if (result.count === 0) {
+            throw new Error(`Insufficient stock for product ${item.productId}`)
+          }
         }
+      }
+
+      if (appliedCoupon) {
+        await tx.coupon.update({
+          where: { id: appliedCoupon.id },
+          data: { usageCount: { increment: 1 } },
+        })
       }
 
       return await tx.order.create({
@@ -170,7 +206,7 @@ export async function POST(request: NextRequest) {
           notes: notes || null,
           userId: session.userId as string,
           addressId,
-          franchiseId: franchiseId || "",
+          franchiseId,
           items: { create: orderItemsData },
           payment: {
             create: {
@@ -213,6 +249,9 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (error.message?.startsWith("Insufficient stock")) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
     console.error("Order creation error:", error)
     return NextResponse.json(

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
 
+export const dynamic = "force-dynamic"
+
 async function getFranchiseId(userId: string) {
   const franchise = await prisma.franchise.findFirst({
     where: { ownerId: userId },
@@ -13,28 +15,31 @@ async function getFranchiseId(userId: string) {
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
-    const franchiseId = await getFranchiseId(session.userId as string)
-    if (!franchiseId) {
+    const franchiseId = session.role === "FRANCHISEE" ? await getFranchiseId(session.userId as string) : undefined
+    if (session.role === "FRANCHISEE" && !franchiseId) {
       return NextResponse.json({ error: "No franchise found" }, { status: 400 })
     }
 
     const now = new Date()
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const where: any = franchiseId ? { franchiseId } : {}
+    const orderWhere: any = franchiseId ? { franchiseId, status: { notIn: ["CANCELLED", "RETURNED"] } } : { status: { notIn: ["CANCELLED", "RETURNED"] } }
+    const itemWhere: any = franchiseId ? { order: { franchiseId } } : {}
 
     const [totalOrders, totalRevenue, totalProducts, totalCustomers, recentOrders, topProducts] = await Promise.all([
-      prisma.order.count({ where: { franchiseId } }),
+      prisma.order.count({ where }),
       prisma.order.aggregate({
-        where: { franchiseId, status: { notIn: ["CANCELLED", "RETURNED"] } },
+        where: orderWhere,
         _sum: { total: true },
       }),
-      prisma.product.count({ where: { franchiseId } }),
+      prisma.product.count({ where }),
       prisma.order.groupBy({
         by: ["userId"],
-        where: { franchiseId },
+        where,
         _count: { userId: true },
       }),
       prisma.order.findMany({
-        where: { franchiseId },
+        where,
         orderBy: { createdAt: "desc" },
         take: 5,
         include: {
@@ -44,7 +49,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.orderItem.groupBy({
         by: ["productId"],
-        where: { order: { franchiseId } },
+        where: itemWhere,
         _sum: { quantity: true, total: true },
         orderBy: { _sum: { quantity: "desc" } },
         take: 5,
@@ -62,7 +67,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       stats: {
         totalOrders,
-        totalRevenue: totalRevenue._sum.total || 0,
+        totalRevenue: totalRevenue._sum?.total || 0,
         totalProducts,
         totalCustomers: totalCustomers.length,
       },

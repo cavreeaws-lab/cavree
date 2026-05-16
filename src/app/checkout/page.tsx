@@ -116,6 +116,7 @@ export default function CheckoutPage() {
             })
             const verifyData = await verifyRes.json()
             if (verifyData.success) {
+              setPlacingOrder(false)
               clearCart()
               router.push(`/checkout/success?order=${data.order.orderNumber}`)
             } else {
@@ -138,6 +139,7 @@ export default function CheckoutPage() {
         })
       } else {
         // COD
+        setPlacingOrder(false)
         clearCart()
         router.push(`/checkout/success?order=${data.order.orderNumber}`)
       }
@@ -281,7 +283,7 @@ export default function CheckoutPage() {
                     </div>
                     <p className="font-medium">
                       {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
-                        (item.product.variant?.price || item.product.price) * item.quantity
+                        (item.product.variant?.price ?? item.product.price) * item.quantity
                       )}
                     </p>
                   </div>

@@ -22,7 +22,7 @@ export default function FranchiseWalletPage() {
   }, [])
 
   const grossSales = orders
-    .filter((order) => !["CANCELLED", "RETURNED", "REFUNDED"].includes(order.status))
+    .filter((order) => !["CANCELLED", "RETURNED"].includes(order.status))
     .reduce((sum, order) => sum + order.total, 0)
   const completedPayments = orders
     .filter((order) => order.payment?.status === "COMPLETED")
@@ -30,7 +30,8 @@ export default function FranchiseWalletPage() {
   const pendingPayments = orders
     .filter((order) => order.payment?.status === "PENDING")
     .reduce((sum, order) => sum + order.total, 0)
-  const estimatedCommission = grossSales * 0.1
+  const commissionRate = (orders[0]?.franchise?.commission ?? 10) / 100
+  const estimatedCommission = grossSales * commissionRate
 
   const cards = [
     { label: "Gross Sales", value: grossSales, icon: IndianRupee },

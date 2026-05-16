@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { hashPassword, verifyResetToken } from "@/lib/auth"
+import { validate, passwordSchema } from "@/lib/validators"
+
+export const dynamic = "force-dynamic"
 
 export async function POST(request: NextRequest) {
   try {
     const { token, password } = await request.json()
 
-    if (!token || !password || typeof password !== "string" || password.length < 6) {
-      return NextResponse.json({ error: "Invalid input. Password must be at least 6 characters." }, { status: 400 })
+    if (!token || typeof token !== "string") {
+      return NextResponse.json({ error: "Invalid token." }, { status: 400 })
+    }
+
+    const validation = validate(passwordSchema, password)
+    if (!validation.success) {
+      return NextResponse.json({ error: "Password must be at least 8 characters with uppercase, lowercase, and a number." }, { status: 400 })
     }
 
     const payload = await verifyResetToken(token)

@@ -169,9 +169,10 @@ model ProductVariant {
   colorCode String?
   sku       String   @unique
   price     Float?
-  quantity  Int      @default(0)
+  quantity  Int          @default(0)
   productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
 
   @@map("product_variants")
 }
@@ -257,9 +258,11 @@ model OrderItem {
   size        String?
   color       String?
   orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId   String
-  product     Product  @relation(fields: [productId], references: [id])
+  product     Product         @relation(fields: [productId], references: [id])
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
 
   @@map("order_items")
 }

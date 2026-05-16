@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
 
+export const dynamic = "force-dynamic"
+
 async function getFranchiseId(userId: string) {
   const franchise = await prisma.franchise.findFirst({
     where: { ownerId: userId },
@@ -13,8 +15,8 @@ async function getFranchiseId(userId: string) {
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
-    const franchiseId = await getFranchiseId(session.userId as string)
-    if (!franchiseId) {
+    const franchiseId = session.role === "FRANCHISEE" ? await getFranchiseId(session.userId as string) : undefined
+    if (session.role === "FRANCHISEE" && !franchiseId) {
       return NextResponse.json({ error: "No franchise found" }, { status: 400 })
     }
 
@@ -22,41 +24,39 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "10")
 
-    // Get distinct customers who ordered from this franchise
-    const orders = await prisma.order.findMany({
-      where: { franchiseId },
-      distinct: ["userId"],
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            _count: { select: { orders: true } },
-          },
-        },
-      },
-      skip: (page - 1) * limit,
-      take: limit,
-      orderBy: { createdAt: "desc" },
-    })
+    const orderWhere: any = franchiseId ? { franchiseId } : {}
 
-    const customers = orders.map((o: any) => ({
-      id: o.user.id,
-      name: o.user.name,
-      email: o.user.email,
-      phone: o.user.phone,
-      orders: o.user._count.orders,
-    }))
-
-    const total = await prisma.order.groupBy({
+    // Aggregate customer stats from orders
+    const customerStats = await prisma.order.groupBy({
       by: ["userId"],
-      where: { franchiseId },
+      where: orderWhere,
       _count: { userId: true },
+      _sum: { total: true },
     })
 
-    return NextResponse.json({ customers, total: total.length, page, limit })
+    const userIds = customerStats.map((s: any) => s.userId)
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, name: true, email: true, phone: true },
+    })
+
+    const userMap = new Map(users.map((u: any) => [u.id, u]))
+
+    const customers = customerStats
+      .map((s: any) => {
+        const u = userMap.get(s.userId)
+        return {
+          id: s.userId,
+          name: u?.name || "",
+          email: u?.email || "",
+          phone: u?.phone || "",
+          orders: s._count.userId,
+          totalSpent: s._sum.total || 0,
+        }
+      })
+      .slice((page - 1) * limit, page * limit)
+
+    return NextResponse.json({ customers, total: customerStats.length, page, limit })
   } catch (error: any) {
     if (error.message === "Unauthorized" || error.message === "Forbidden") {
       return NextResponse.json({ error: error.message }, { status: 401 })

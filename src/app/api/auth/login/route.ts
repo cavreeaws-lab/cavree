@@ -4,6 +4,8 @@ import { verifyPassword, createSession } from "@/lib/auth"
 import { rateLimit } from "@/lib/rate-limit"
 import { validate, loginSchema } from "@/lib/validators"
 
+export const dynamic = "force-dynamic"
+
 export async function POST(request: NextRequest) {
   try {
     const limit = rateLimit(request, 5, 60 * 1000)

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
 import { rateLimit } from "@/lib/rate-limit"
 
+export const dynamic = "force-dynamic"
+
 export async function POST(request: NextRequest) {
   try {
     const limit = rateLimit(request, 5, 60 * 1000)

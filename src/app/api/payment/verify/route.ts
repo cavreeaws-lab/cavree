@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/auth"
 import { validate, paymentVerifySchema } from "@/lib/validators"
 import crypto from "crypto"
 
+export const dynamic = "force-dynamic"
+
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireAuth()
     const body = await request.json()
     const validation = validate(paymentVerifySchema, body)
     if (!validation.success) {
@@ -25,27 +29,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    await prisma.payment.updateMany({
+    const payment = await prisma.payment.findFirst({
       where: { transactionId: razorpay_order_id },
+      include: { order: true },
+    })
+
+    if (!payment) {
+      return NextResponse.json({ error: "Payment not found" }, { status: 404 })
+    }
+
+    if (payment.order.userId !== session.userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    await prisma.payment.update({
+      where: { id: payment.id },
       data: {
         status: "COMPLETED",
-        transactionId: razorpay_payment_id,
         paidAt: new Date(),
+        gatewayData: {
+          ...(payment.gatewayData as any || {}),
+          razorpayPaymentId: razorpay_payment_id,
+          razorpaySignature: razorpay_signature,
+        },
       },
     })
 
-    const payment = await prisma.payment.findFirst({
-      where: { transactionId: razorpay_payment_id },
+    await prisma.order.update({
+      where: { id: payment.orderId },
+      data: { status: "CONFIRMED" },
     })
-    if (payment) {
-      await prisma.order.update({
-        where: { id: payment.orderId },
-        data: { status: "CONFIRMED" },
-      })
-    }
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "Unauthorized" || error.message === "Forbidden") {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
     console.error("Payment verification error:", error)
     return NextResponse.json({ error: "Verification failed" }, { status: 500 })
   }

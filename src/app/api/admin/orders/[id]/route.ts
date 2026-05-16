@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
 import { validate, orderStatusUpdateSchema } from "@/lib/validators"
 
+export const dynamic = "force-dynamic"
+
 async function getFranchiseId(userId: string) {
   const franchise = await prisma.franchise.findFirst({
     where: { ownerId: userId },
@@ -11,17 +13,53 @@ async function getFranchiseId(userId: string) {
   return franchise?.id
 }
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const franchiseId = session.role === "FRANCHISEE" ? await getFranchiseId(session.userId as string) : undefined
+
+    const where: any = { id: params.id }
+    if (franchiseId) where.franchiseId = franchiseId
+
+    const order = await prisma.order.findFirst({
+      where,
+      include: {
+        items: true,
+        user: { select: { name: true, email: true, phone: true } },
+        address: true,
+        payment: true,
+        shippingDetail: true,
+        franchise: { select: { name: true } },
+      },
+    })
+
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ order })
+  } catch (error: any) {
+    if (error.message === "Unauthorized" || error.message === "Forbidden") {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
+    return NextResponse.json({ error: "Server error" }, { status: 500 })
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
-    const franchiseId = await getFranchiseId(session.userId as string)
+    const franchiseId = session.role === "FRANCHISEE" ? await getFranchiseId(session.userId as string) : undefined
 
-    const existing = await prisma.order.findFirst({
-      where: { id: params.id, franchiseId: franchiseId || undefined },
-    })
+    const where: any = { id: params.id }
+    if (franchiseId) where.franchiseId = franchiseId
+    const existing = await prisma.order.findFirst({ where })
     if (!existing) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }

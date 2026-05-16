@@ -5,6 +5,8 @@ import { rateLimit } from "@/lib/rate-limit"
 import { validate, paymentCreateSchema } from "@/lib/validators"
 import Razorpay from "razorpay"
 
+export const dynamic = "force-dynamic"
+
 export async function POST(request: NextRequest) {
   try {
     const limit = rateLimit(request, 10, 60 * 1000)

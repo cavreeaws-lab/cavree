@@ -4,6 +4,8 @@ import { sendEmail } from "@/lib/email"
 import { validate, franchiseApplicationSchema } from "@/lib/validators"
 import { rateLimit } from "@/lib/rate-limit"
 
+export const dynamic = "force-dynamic"
+
 function escapeHtml(unsafe: string): string {
   return unsafe
     .replace(/&/g, "&amp;")

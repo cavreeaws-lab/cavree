@@ -5,6 +5,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { getS3Client } from "@/lib/s3"
 import { validate, fileUploadSchema } from "@/lib/validators"
 
+export const dynamic = "force-dynamic"
+
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",

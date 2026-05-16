@@ -57,7 +57,7 @@ export default function CartPage() {
                   )}
                   <p className="font-montserrat font-semibold mt-2">
                     {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
-                      item.product.variant?.price || item.product.price
+                      item.product.variant?.price ?? item.product.price
                     )}
                   </p>
                   <div className="flex items-center gap-3 mt-3">
@@ -87,7 +87,7 @@ export default function CartPage() {
                 <div className="text-right">
                   <p className="font-montserrat font-semibold">
                     {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
-                      (item.product.variant?.price || item.product.price) * item.quantity
+                      (item.product.variant?.price ?? item.product.price) * item.quantity
                     )}
                   </p>
                 </div>

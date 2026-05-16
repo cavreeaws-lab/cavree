@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-const passwordSchema = z.string()
+export const passwordSchema = z.string()
   .min(8, "Password must be at least 8 characters")
   .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
   .regex(/[a-z]/, "Password must contain at least one lowercase letter")
@@ -16,7 +16,7 @@ export const registerSchema = z.object({
   password: passwordSchema,
   name: z.string().min(1, "Name is required"),
   phone: z.string().optional(),
-  role: z.enum(["CUSTOMER", "FRANCHISEE", "SUPER_ADMIN"]).optional(),
+  role: z.enum(["CUSTOMER", "FRANCHISEE", "ADMIN", "SUPER_ADMIN"]).optional(),
 })
 
 export const profileUpdateSchema = z.object({
@@ -98,6 +98,7 @@ export const productSchema = z.object({
   isActive: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
   categoryId: z.string().min(1, "Category is required"),
+  franchiseId: z.string().optional(),
   images: z.array(z.object({ url: z.string() })).optional(),
   variants: z.array(
     z.object({
@@ -110,7 +111,7 @@ export const productSchema = z.object({
 })
 
 export const orderStatusUpdateSchema = z.object({
-  status: z.enum(["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED"]),
+  status: z.enum(["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED", "REFUNDED"]),
 })
 
 export const reviewSchema = z.object({
@@ -137,7 +138,7 @@ export const createUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
   password: passwordSchema,
-  role: z.enum(["CUSTOMER", "FRANCHISEE", "SUPER_ADMIN"]).optional(),
+  role: z.enum(["CUSTOMER", "FRANCHISEE", "ADMIN", "SUPER_ADMIN"]).optional(),
   phone: z.string().optional(),
 })
 
@@ -148,6 +149,11 @@ export const franchiseApplicationSchema = z.object({
   city: z.string().min(1, "City is required"),
   investment: z.string().min(1, "Investment amount is required"),
   space: z.string().min(1, "Space details are required"),
+})
+
+export const franchiseApplicationUpdateSchema = z.object({
+  action: z.enum(["APPROVE", "REJECT"]),
+  notes: z.string().optional(),
 })
 
 export const settingsUpdateSchema = z.object({

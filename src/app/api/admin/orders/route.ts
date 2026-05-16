@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
 
+export const dynamic = "force-dynamic"
+
 async function getFranchiseId(userId: string) {
   const franchise = await prisma.franchise.findFirst({
     where: { ownerId: userId },
@@ -13,8 +15,8 @@ async function getFranchiseId(userId: string) {
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
-    const franchiseId = await getFranchiseId(session.userId as string)
-    if (!franchiseId) {
+    const franchiseId = session.role === "FRANCHISEE" ? await getFranchiseId(session.userId as string) : undefined
+    if (session.role === "FRANCHISEE" && !franchiseId) {
       return NextResponse.json({ error: "No franchise found" }, { status: 400 })
     }
 
@@ -23,7 +25,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "10")
 
-    const where: any = { franchiseId }
+    const where: any = franchiseId ? { franchiseId } : {}
     if (status) where.status = status
 
     const [orders, total] = await Promise.all([
@@ -37,6 +39,7 @@ export async function GET(request: NextRequest) {
           user: { select: { name: true, email: true } },
           payment: true,
           address: true,
+          franchise: { select: { name: true, commission: true } },
         },
       }),
       prisma.order.count({ where }),

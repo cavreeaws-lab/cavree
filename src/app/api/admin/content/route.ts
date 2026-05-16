@@ -4,6 +4,8 @@ import { requireAuth } from "@/lib/auth"
 import { validate } from "@/lib/validators"
 import { z } from "zod"
 
+export const dynamic = "force-dynamic"
+
 const contentSchema = z.object({
   key: z.string().min(1),
   type: z.enum(["TEXT", "HTML", "IMAGE"]).optional(),

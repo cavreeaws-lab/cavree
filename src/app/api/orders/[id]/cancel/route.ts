@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
 
+export const dynamic = "force-dynamic"
+
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
@@ -31,10 +33,17 @@ export async function PATCH(
     await prisma.$transaction(async (tx: any) => {
       // Restore stock
       for (const item of order.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { quantity: { increment: item.quantity } },
-        })
+        if (item.variantId) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { quantity: { increment: item.quantity } },
+          })
+        } else {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { quantity: { increment: item.quantity } },
+          })
+        }
       }
 
       // Update order status

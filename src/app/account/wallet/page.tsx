@@ -28,7 +28,7 @@ export default function CustomerWalletPage() {
     .filter((order) => order.payment?.status === "PENDING")
     .reduce((sum, order) => sum + order.total, 0)
   const refundedAmount = orders
-    .filter((order) => order.status === "REFUNDED")
+    .filter((order) => order.status === "CANCELLED" && order.payment?.status === "REFUNDED")
     .reduce((sum, order) => sum + order.total, 0)
 
   const cards = [

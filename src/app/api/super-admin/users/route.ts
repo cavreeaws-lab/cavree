@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, hashPassword } from "@/lib/auth"
 import { validate, createUserSchema } from "@/lib/validators"
 
+export const dynamic = "force-dynamic"
+
 export async function GET() {
   try {
     await requireAuth(["SUPER_ADMIN"])

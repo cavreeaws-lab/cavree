@@ -4,6 +4,8 @@ import { hashPassword } from "@/lib/auth"
 import { rateLimit } from "@/lib/rate-limit"
 import { validate, registerSchema } from "@/lib/validators"
 
+export const dynamic = "force-dynamic"
+
 export async function POST(request: NextRequest) {
   try {
     const limit = rateLimit(request, 3, 60 * 1000)
@@ -15,7 +17,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json({ error: validation.errors.flatten().fieldErrors }, { status: 400 })
     }
-    const { email, password, name, phone, role = "CUSTOMER" } = validation.data
+    const { email, password, name, phone } = validation.data
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -36,7 +38,7 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         name,
         phone,
-        role,
+        role: "CUSTOMER",
       },
       select: {
         id: true,
