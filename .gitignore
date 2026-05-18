@@ -43,5 +43,5 @@ LOCAL_EC2_RDS_AGENT_RUNBOOK.md
 # local reference assets not needed for Amplify deployment
 carvee website Final/
 cavree admin pannel/
-products/
+/products/
 need files/
