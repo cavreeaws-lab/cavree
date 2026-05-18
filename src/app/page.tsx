@@ -30,10 +30,10 @@ const heroSlides = [
 ]
 
 const categories = [
-  { name: "Women", image: "/images/cat-women.jpg", count: 120 },
-  { name: "Men", image: "/images/cat-men.jpg", count: 85 },
-  { name: "Accessories", image: "/images/cat-accessories.jpg", count: 45 },
-  { name: "Footwear", image: "/images/cat-footwear.jpg", count: 60 },
+  { name: "Women", image: "/images/cat-women.jpg" },
+  { name: "Men", image: "/images/cat-men.jpg" },
+  { name: "Accessories", image: "/images/cat-accessories.jpg" },
+  { name: "Footwear", image: "/images/cat-footwear.jpg" },
 ]
 
 const features = [
@@ -111,6 +111,7 @@ export default function HomePage() {
   const [products, setProducts] = useState<any[]>([])
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([])
   const [banners, setBanners] = useState<any[]>([])
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -133,6 +134,17 @@ export default function HomePage() {
     fetch("/api/banners")
       .then((res) => res.json())
       .then((data) => setBanners(data.banners || []))
+      .catch(console.error)
+
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((data) => {
+        const counts: Record<string, number> = {}
+        ;(data.categories || []).forEach((cat: any) => {
+          counts[cat.name] = cat._count?.products || 0
+        })
+        setCategoryCounts(counts)
+      })
       .catch(console.error)
   }, [])
 
@@ -227,7 +239,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
                   <h3 className="font-playfair text-xl md:text-2xl font-bold">{category.name}</h3>
-                  <p className="text-sm mt-1 font-poppins">{category.count} Products</p>
+                  <p className="text-sm mt-1 font-poppins">{categoryCounts[category.name] || 0} Products</p>
                 </div>
               </Link>
             ))}
