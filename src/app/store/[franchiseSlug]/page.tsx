@@ -409,7 +409,7 @@ export default function FranchisePublicStorePage() {
                   </div>
                 </div>
                 <div className="shrink-0">
-                  <ProductCardAddToCart product={product} />
+                  <AddToCartButton product={product} />
                 </div>
               </div>
             ))}
