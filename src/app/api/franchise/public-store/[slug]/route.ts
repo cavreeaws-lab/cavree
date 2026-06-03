@@ -96,12 +96,12 @@ export async function GET(
       }),
     ])
 
-    const normalizedProducts = products.map((product) => ({
+    const normalizedProducts = (products as any[]).map((product: any) => ({
       ...product,
       images:
-        product.images.length > 0
+        product.images?.length > 0
           ? product.images
-          : product.media
+          : (product.media || [])
               .filter((item: any) => item.type === "IMAGE")
               .slice(0, 1),
     }))
