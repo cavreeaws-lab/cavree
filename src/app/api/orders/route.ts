@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/rate-limit"
 import { validate, createOrderSchema } from "@/lib/validators"
 import { sendOrderConfirmationEmail } from "@/lib/email"
 import { generateOrderNumber } from "@/lib/admin"
+import { routeOrderToFranchise } from "@/lib/order-routing"
 
 export const dynamic = "force-dynamic"
 
@@ -103,7 +104,6 @@ export async function POST(request: NextRequest) {
 
     let subtotal = 0
     const orderItemsData: any[] = []
-    const franchiseIds = new Set<string>()
 
     for (const item of items as any[]) {
       const product: any = productMap.get(item.productId)
@@ -150,19 +150,21 @@ export async function POST(request: NextRequest) {
         productId: product.id,
         variantId: item.variantId || null,
       })
-
-      if (product.franchiseId) {
-        franchiseIds.add(product.franchiseId)
-      }
     }
 
-    if (franchiseIds.size === 0) {
-      return NextResponse.json({ error: "No valid franchise for these products" }, { status: 400 })
-    }
-    if (franchiseIds.size > 1) {
-      return NextResponse.json({ error: "Items must be from the same franchise" }, { status: 400 })
-    }
-    const franchiseId = Array.from(franchiseIds)[0]
+    // Auto-route order to franchise based on customer location and stock
+    const firstItem = items[0]
+    const firstProduct: any = productMap.get(firstItem.productId)
+    const firstVariant = firstItem.variantId ? firstProduct.variants.find((v: any) => v.id === firstItem.variantId) : null
+    const routed = await routeOrderToFranchise(
+      firstItem.productId,
+      firstItem.variantId || null,
+      firstItem.quantity,
+      address.city || "",
+      address.pincode || undefined
+    )
+    const franchiseId = routed.franchiseId
+    const autoAccepted = routed.autoAccepted
 
     const shipping = 0
     let discount = 0
@@ -241,7 +243,7 @@ export async function POST(request: NextRequest) {
       return await tx.order.create({
         data: {
           orderNumber,
-          status: "PENDING",
+          status: autoAccepted ? "CONFIRMED" : "PENDING",
           subtotal,
           discount,
           shipping,
@@ -253,6 +255,8 @@ export async function POST(request: NextRequest) {
           userId,
           addressId,
           franchiseId,
+          routedAt: new Date(),
+          routingReason: routed.reason,
           items: { create: orderItemsData },
           payment: {
             create: {

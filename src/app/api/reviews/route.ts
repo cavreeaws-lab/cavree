@@ -19,6 +19,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 })
     }
 
+    const reviewSetting = await prisma.setting.findUnique({
+      where: { key: "reviewsEnabled" },
+    })
+    if (reviewSetting?.value === "false") {
+      return NextResponse.json({ error: "Reviews are currently disabled" }, { status: 403 })
+    }
+
     // Customers can review only after the order is fully completed.
     const hasOrdered = await prisma.orderItem.findFirst({
       where: {

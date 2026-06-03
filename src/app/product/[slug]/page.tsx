@@ -49,6 +49,7 @@ export default function ProductDetailPage() {
   const [reviewComment, setReviewComment] = useState("")
   const [submittingReview, setSubmittingReview] = useState(false)
   const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [reviewsEnabled, setReviewsEnabled] = useState(true)
 
   // New states
   const [relatedProducts, setRelatedProducts] = useState<any[]>([])
@@ -73,6 +74,11 @@ export default function ProductDetailPage() {
         }
       })
       .catch(() => setLoading(false))
+
+    fetch("/api/settings/reviews")
+      .then((r) => r.json())
+      .then((data) => setReviewsEnabled(data.enabled !== false))
+      .catch(() => setReviewsEnabled(true))
   }, [params.slug])
 
   // Fetch related products when product loads
@@ -595,7 +601,7 @@ export default function ProductDetailPage() {
       {/* Tabs */}
       <div className="mt-16">
         <div className="flex gap-8 border-b border-cavree-border">
-          {["description", "reviews", "shipping"].map((tab) => (
+          {["description", ...(reviewsEnabled ? ["reviews"] : []), "shipping"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -614,50 +620,56 @@ export default function ProductDetailPage() {
           )}
           {activeTab === "reviews" && (
             <div className="space-y-6">
-              {/* Review Form */}
-              <div className="border border-cavree-border rounded-lg p-5">
-                <h3 className="font-medium text-sm mb-3">Write a Review</h3>
-                <div className="flex items-center gap-1 mb-3">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button key={star} onClick={() => setReviewRating(star)}>
-                      <Star size={18} className={star <= reviewRating ? "text-cavree-accent fill-cavree-accent" : "text-gray-300"} />
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder="Share your experience..."
-                  rows={3}
-                  className="w-full border border-cavree-border rounded-md px-3 py-2 text-sm outline-none focus:border-cavree-primary resize-none"
-                />
-                <button
-                  onClick={handleSubmitReview}
-                  disabled={submittingReview || !reviewComment.trim()}
-                  className="mt-3 bg-cavree-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-cavree-primary-light disabled:opacity-50 transition-colors"
-                >
-                  {submittingReview ? "Submitting..." : "Submit Review"}
-                </button>
-              </div>
-
-              {product.reviews?.length === 0 ? (
-                <p className="text-cavree-muted font-poppins">No reviews yet.</p>
+              {!reviewsEnabled ? (
+                <p className="text-cavree-muted font-poppins">Reviews are currently disabled.</p>
               ) : (
-                <div className="space-y-6">
-                  {product.reviews.map((review: any) => (
-                    <div key={review.id} className="border-b border-cavree-border pb-6">
-                      <div className="flex items-center gap-2">
-                        <div className="flex">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} size={14} className={i < review.rating ? "text-cavree-accent fill-cavree-accent" : "text-gray-300"} />
-                          ))}
-                        </div>
-                        <span className="text-sm font-medium">{review.user?.name || "Anonymous"}</span>
-                      </div>
-                      <p className="mt-2 text-sm font-poppins text-cavree-muted">{review.comment}</p>
+                <>
+                  {/* Review Form */}
+                  <div className="border border-cavree-border rounded-lg p-5">
+                    <h3 className="font-medium text-sm mb-3">Write a Review</h3>
+                    <div className="flex items-center gap-1 mb-3">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button key={star} onClick={() => setReviewRating(star)}>
+                          <Star size={18} className={star <= reviewRating ? "text-cavree-accent fill-cavree-accent" : "text-gray-300"} />
+                        </button>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                    <textarea
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      placeholder="Share your experience..."
+                      rows={3}
+                      className="w-full border border-cavree-border rounded-md px-3 py-2 text-sm outline-none focus:border-cavree-primary resize-none"
+                    />
+                    <button
+                      onClick={handleSubmitReview}
+                      disabled={submittingReview || !reviewComment.trim()}
+                      className="mt-3 bg-cavree-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-cavree-primary-light disabled:opacity-50 transition-colors"
+                    >
+                      {submittingReview ? "Submitting..." : "Submit Review"}
+                    </button>
+                  </div>
+
+                  {product.reviews?.length === 0 ? (
+                    <p className="text-cavree-muted font-poppins">No reviews yet.</p>
+                  ) : (
+                    <div className="space-y-6">
+                      {product.reviews.map((review: any) => (
+                        <div key={review.id} className="border-b border-cavree-border pb-6">
+                          <div className="flex items-center gap-2">
+                            <div className="flex">
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} size={14} className={i < review.rating ? "text-cavree-accent fill-cavree-accent" : "text-gray-300"} />
+                              ))}
+                            </div>
+                            <span className="text-sm font-medium">{review.user?.name || "Anonymous"}</span>
+                          </div>
+                          <p className="mt-2 text-sm font-poppins text-cavree-muted">{review.comment}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

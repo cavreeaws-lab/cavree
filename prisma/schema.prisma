@@ -11,6 +11,7 @@ datasource db {
 enum UserRole {
   CUSTOMER
   FRANCHISEE
+  FRANCHISE_STAFF
   SALES_EXECUTIVE
   ADMIN
   SUPER_ADMIN
@@ -65,53 +66,62 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  franchise          Franchise?
-  addresses          Address[]
-  orders             Order[]
-  cart               Cart?
-  wishlist           Wishlist?
-  reviews            Review[]
-  payouts            Payout[]
-  walletTransactions WalletTransaction[]
-  retailerProfile    Retailer?           @relation("RetailerUser")
-  assignedRetailers  Retailer[]          @relation("RetailerSalesExecutive")
-  bulkCart           BulkCart?
-  bulkOrders         BulkOrder[]
+  franchise            Franchise?
+  addresses            Address[]
+  orders               Order[]
+  cart                 Cart?
+  wishlist             Wishlist?
+  reviews              Review[]
+  payouts              Payout[]
+  walletTransactions   WalletTransaction[]
+  retailerProfile      Retailer?              @relation("RetailerUser")
+  assignedRetailers    Retailer[]             @relation("RetailerSalesExecutive")
+  bulkCart             BulkCart?
+  bulkOrders           BulkOrder[]
   warehouseAssignments WarehouseCoordinator[]
-  commissionCredits  CommissionCredit[]
+  commissionCredits    CommissionCredit[]
+  franchiseStaff       FranchiseStaff?
 
   @@map("users")
 }
 
 model Franchise {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String?
-  logo        String?
-  banner      String?
-  address     String?
-  city        String?
-  state       String?
-  pincode     String?
-  phone       String?
-  email       String?
-  commission  Float    @default(10.0)
-  isActive    Boolean  @default(true)
-  isApproved  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  description      String?
+  logo             String?
+  banner           String?
+  address          String?
+  city             String?
+  state            String?
+  pincode          String?
+  phone            String?
+  email            String?
+  commission       Float    @default(10.0)
+  isActive         Boolean  @default(true)
+  isApproved       Boolean  @default(false)
+  isMainStore      Boolean  @default(false)
+  autoAcceptOrders Boolean  @default(false)
+  latitude         Float?
+  longitude        Float?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   ownerId String   @unique
   owner   User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   payouts Payout[]
 
-  products Product[]
-  orders   Order[]
-  retailers Retailer[]
-  agreements FranchiseAgreement[]
-  warehouses Warehouse[]
-  commissionRules CommissionRule[]
+  products           Product[]
+  orders             Order[]
+  retailers          Retailer[]
+  agreements         FranchiseAgreement[]
+  warehouses         Warehouse[]
+  commissionRules    CommissionRule[]
+  staff              FranchiseStaff[]
+  walletTransactions FranchiseWalletTransaction[]
+  productStocks      ProductFranchiseStock[]
+  shippingConfig     VendorShippingConfig?
 
   @@map("franchises")
 }
@@ -135,36 +145,36 @@ model Category {
 }
 
 model Product {
-  id                String   @id @default(cuid())
-  name              String
-  slug              String   @unique
-  description       String?
-  sku               String   @unique
-  modelNumber       String?
-  productType       String?
-  shirtType         String?
-  brand             String?
-  barcode           String?
-  price             Float
-  comparePrice      Float?
-  costPrice         Float?
-  singlePiecePrice  Float?
-  franchiseBulkPrice Float?
+  id                   String   @id @default(cuid())
+  name                 String
+  slug                 String   @unique
+  description          String?
+  sku                  String   @unique
+  modelNumber          String?
+  productType          String?
+  shirtType            String?
+  brand                String?
+  barcode              String?
+  price                Float
+  comparePrice         Float?
+  costPrice            Float?
+  singlePiecePrice     Float?
+  franchiseBulkPrice   Float?
   minimumQuantityLimit Int?
-  quantity          Int      @default(0)
-  weight            Float?
-  dimensions        Json?
-  trackQuantity     Boolean  @default(true)
-  allowBackorders   Boolean  @default(false)
-  lowStockThreshold Int      @default(5)
-  isActive          Boolean  @default(true)
-  isFeatured        Boolean  @default(false)
-  isNew             Boolean  @default(false)
-  tags              String[]
-  metaTitle         String?
-  metaDescription   String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  quantity             Int      @default(0)
+  weight               Float?
+  dimensions           Json?
+  trackQuantity        Boolean  @default(true)
+  allowBackorders      Boolean  @default(false)
+  lowStockThreshold    Int      @default(5)
+  isActive             Boolean  @default(true)
+  isFeatured           Boolean  @default(false)
+  isNew                Boolean  @default(false)
+  tags                 String[]
+  metaTitle            String?
+  metaDescription      String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
@@ -181,6 +191,7 @@ model Product {
   reviews        Review[]
   recentlyViewed RecentlyViewed[]
   returnItems    ReturnRequest[]
+  productStocks  ProductFranchiseStock[]
 
   @@map("products")
 }
@@ -270,19 +281,19 @@ model CartItem {
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  orderNumber String      @unique
-  idempotencyKey String?  @unique
-  status      OrderStatus @default(PENDING)
-  subtotal    Float
-  discount    Float       @default(0)
-  shipping    Float       @default(0)
-  tax         Float       @default(0)
-  total       Float
-  couponCode  String?
-  notes       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  orderNumber    String      @unique
+  idempotencyKey String?     @unique
+  status         OrderStatus @default(PENDING)
+  subtotal       Float
+  discount       Float       @default(0)
+  shipping       Float       @default(0)
+  tax            Float       @default(0)
+  total          Float
+  couponCode     String?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   userId    String
   user      User    @relation(fields: [userId], references: [id])
@@ -291,6 +302,10 @@ model Order {
 
   franchiseId String
   franchise   Franchise @relation(fields: [franchiseId], references: [id])
+
+  routedAt            DateTime?
+  routingReason       String?
+  originalFranchiseId String?
 
   items          OrderItem[]
   payment        Payment?
@@ -338,16 +353,21 @@ model Payment {
 }
 
 model Shipping {
-  id             String         @id @default(cuid())
-  status         ShippingStatus @default(PENDING)
-  carrier        String?
-  trackingNumber String?
-  trackingUrl    String?
-  estimatedDate  DateTime?
-  shippedAt      DateTime?
-  deliveredAt    DateTime?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                       String         @id @default(cuid())
+  status                   ShippingStatus @default(PENDING)
+  carrier                  String?
+  trackingNumber           String?
+  trackingUrl              String?
+  estimatedDate            DateTime?
+  shippedAt                DateTime?
+  deliveredAt              DateTime?
+  shiprocketOrderId        String?
+  shiprocketShipmentId     String?
+  shiprocketTrackingUrl    String?
+  shiprocketCourierName    String?
+  shiprocketEwayBillNumber String?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
 
   orderId String @unique
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -524,18 +544,22 @@ model CustomerNote {
 }
 
 model ReturnRequest {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String?
-  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  userId    String
-  type      String   @default("RETURN")
-  reason    String
-  status    String   @default("PENDING")
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String    @id @default(cuid())
+  orderId             String
+  order               Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId           String?
+  product             Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  userId              String
+  type                String    @default("RETURN")
+  reason              String
+  status              String    @default("PENDING")
+  notes               String?
+  arbitrationDecision String?
+  arbitrationNote     String?
+  arbitratedAt        DateTime?
+  arbitratedBy        String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([orderId])
   @@index([userId])
@@ -640,26 +664,26 @@ model EmailTemplate {
 }
 
 model Retailer {
-  id                String   @id @default(cuid())
-  businessName      String
-  ownerName         String
-  email             String   @unique
-  phone             String
-  gstNumber         String?
-  address           String?
-  city              String?
-  state             String?
-  categoryInterests String[]
-  membershipTier    String   @default("STANDARD")
-  status            String   @default("PENDING")
-  franchiseCode     String   @unique
-  paymentStatus     String   @default("PENDING")
-  agreementStatus   String   @default("PENDING")
-  renewalStatus     String   @default("NOT_DUE")
-  warehouseStockValue Float  @default(0)
-  notes             String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  businessName        String
+  ownerName           String
+  email               String   @unique
+  phone               String
+  gstNumber           String?
+  address             String?
+  city                String?
+  state               String?
+  categoryInterests   String[]
+  membershipTier      String   @default("STANDARD")
+  status              String   @default("PENDING")
+  franchiseCode       String   @unique
+  paymentStatus       String   @default("PENDING")
+  agreementStatus     String   @default("PENDING")
+  renewalStatus       String   @default("NOT_DUE")
+  warehouseStockValue Float    @default(0)
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   userId String? @unique
   user   User?   @relation("RetailerUser", fields: [userId], references: [id], onDelete: SetNull)
@@ -670,7 +694,7 @@ model Retailer {
   franchiseId String?
   franchise   Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
 
-  bulkOrders BulkOrder[]
+  bulkOrders        BulkOrder[]
   commissionCredits CommissionCredit[]
 
   @@index([status])
@@ -698,8 +722,8 @@ model BulkProduct {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  units BulkProductUnit[]
-  cartItems BulkCartItem[]
+  units      BulkProductUnit[]
+  cartItems  BulkCartItem[]
   orderItems BulkOrderItem[]
 
   @@index([category, isActive])
@@ -707,42 +731,42 @@ model BulkProduct {
 }
 
 model BulkProductUnit {
-  id        String   @id @default(cuid())
-  unitCode  String   @unique
-  status    String   @default("AVAILABLE")
+  id        String      @id @default(cuid())
+  unitCode  String      @unique
+  status    String      @default("AVAILABLE")
   productId String
   product   BulkProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@index([productId, status])
   @@map("bulk_product_units")
 }
 
 model BulkCart {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String         @id @default(cuid())
+  userId    String         @unique
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     BulkCartItem[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
   @@map("bulk_carts")
 }
 
 model BulkCartItem {
-  id                String   @id @default(cuid())
-  unitCount         Int      @default(1)
-  unitSize          Int      @default(1000)
+  id                String      @id @default(cuid())
+  unitCount         Int         @default(1)
+  unitSize          Int         @default(1000)
   unitPrice         Float
   selectedUnitCodes String[]
   total             Float
   cartId            String
-  cart              BulkCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cart              BulkCart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
   productId         String
   product           BulkProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   @@unique([cartId, productId])
   @@map("bulk_cart_items")
@@ -770,12 +794,12 @@ model BulkOrder {
   updatedAt       DateTime @updatedAt
 
   userId String
-  user   User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 
   retailerId String?
   retailer   Retailer? @relation(fields: [retailerId], references: [id], onDelete: SetNull)
 
-  items BulkOrderItem[]
+  items    BulkOrderItem[]
   timeline BulkOrderTimeline[]
 
   @@index([franchiseCode])
@@ -784,7 +808,7 @@ model BulkOrder {
 }
 
 model BulkOrderItem {
-  id                String   @id @default(cuid())
+  id                String       @id @default(cuid())
   name              String
   productCode       String
   unitCount         Int
@@ -793,7 +817,7 @@ model BulkOrderItem {
   total             Float
   selectedUnitCodes String[]
   orderId           String
-  order             BulkOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order             BulkOrder    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId         String?
   product           BulkProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
@@ -801,11 +825,11 @@ model BulkOrderItem {
 }
 
 model BulkOrderTimeline {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   status    String
   title     String
   note      String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   orderId   String
   order     BulkOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -814,16 +838,16 @@ model BulkOrderTimeline {
 }
 
 model FranchiseAgreement {
-  id          String   @id @default(cuid())
-  status      String   @default("PENDING")
-  feeAmount   Float    @default(0)
-  feeStatus   String   @default("PENDING")
+  id          String    @id @default(cuid())
+  status      String    @default("PENDING")
+  feeAmount   Float     @default(0)
+  feeStatus   String    @default("PENDING")
   startsAt    DateTime?
   renewsAt    DateTime?
   documentUrl String?
   notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   franchiseId String
   franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
@@ -846,25 +870,25 @@ model Warehouse {
   franchise   Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
 
   coordinators WarehouseCoordinator[]
-  movements StockMovement[]
+  movements    StockMovement[]
 
   @@map("warehouses")
 }
 
 model WarehouseCoordinator {
-  id          String   @id @default(cuid())
-  name        String
-  email       String
-  phone       String?
-  status      String   @default("ACTIVE")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   warehouseId String?
   warehouse   Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
 
   userId String?
-  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@map("warehouse_coordinators")
@@ -888,13 +912,13 @@ model StockMovement {
 }
 
 model CommissionRule {
-  id          String   @id @default(cuid())
-  name        String
-  rate        Float
-  appliesTo   String   @default("FRANCHISE")
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  rate      Float
+  appliesTo String   @default("FRANCHISE")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   franchiseId String?
   franchise   Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
@@ -905,14 +929,14 @@ model CommissionRule {
 }
 
 model CommissionCredit {
-  id          String   @id @default(cuid())
-  amount      Float
-  rate        Float
-  source      String
-  status      String   @default("PENDING")
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  amount    Float
+  rate      Float
+  source    String
+  status    String   @default("PENDING")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   ruleId String?
   rule   CommissionRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
@@ -921,8 +945,182 @@ model CommissionCredit {
   retailer   Retailer? @relation(fields: [retailerId], references: [id], onDelete: SetNull)
 
   userId String?
-  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@map("commission_credits")
+}
+
+model BlogCategory {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  posts BlogPost[]
+
+  @@map("blog_categories")
+}
+
+model BlogPost {
+  id              String    @id @default(cuid())
+  title           String
+  slug            String    @unique
+  excerpt         String?
+  content         String?
+  coverImage      String?
+  metaTitle       String?
+  metaDescription String?
+  isPublished     Boolean   @default(false)
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  categoryId String?
+  category   BlogCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([isPublished, publishedAt])
+  @@map("blog_posts")
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model SupportTicket {
+  id          String         @id @default(cuid())
+  subject     String
+  description String?
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  category    String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  userId  String
+  orderId String?
+
+  messages TicketMessage[]
+
+  @@index([userId, status])
+  @@index([orderId])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id          String   @id @default(cuid())
+  message     String
+  senderType  String   @default("CUSTOMER")
+  attachments String[]
+  createdAt   DateTime @default(now())
+
+  ticketId String
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_messages")
+}
+
+enum FranchiseStaffRole {
+  MANAGER
+  STAFF
+  ACCOUNTANT
+  INVENTORY_MANAGER
+}
+
+model FranchiseStaff {
+  id          String             @id @default(cuid())
+  name        String
+  email       String
+  phone       String?
+  role        FranchiseStaffRole @default(STAFF)
+  permissions Json?
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  franchiseId String
+  franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([franchiseId, email])
+  @@map("franchise_staff")
+}
+
+model FranchiseWalletTransaction {
+  id          String   @id @default(cuid())
+  amount      Float
+  type        String
+  status      String   @default("PENDING")
+  description String?
+  orderId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  franchiseId String
+  franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+
+  @@map("franchise_wallet_transactions")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String
+  p256dh    String
+  auth      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, endpoint])
+  @@map("push_subscriptions")
+}
+
+model ProductFranchiseStock {
+  id                String   @id @default(cuid())
+  quantity          Int      @default(0)
+  lowStockThreshold Int      @default(5)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  franchiseId String
+  franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, franchiseId])
+  @@map("product_franchise_stocks")
+}
+
+model VendorShippingConfig {
+  id                    String   @id @default(cuid())
+  name                  String
+  zones                 Json?
+  freeShippingThreshold Float?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  franchiseId String
+  franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+
+  @@unique([franchiseId])
+  @@map("vendor_shipping_configs")
 }

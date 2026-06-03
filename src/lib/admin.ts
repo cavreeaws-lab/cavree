@@ -18,6 +18,19 @@ export async function getAdminScope(session: unknown) {
     }
   }
 
+  if (role === "FRANCHISE_STAFF") {
+    const staff = await prisma.franchiseStaff.findFirst({
+      where: { userId, isActive: true },
+      select: { franchiseId: true },
+    })
+    return {
+      role,
+      userId,
+      franchiseId: staff?.franchiseId,
+      isFranchiseScoped: true,
+    }
+  }
+
   return {
     role,
     userId,

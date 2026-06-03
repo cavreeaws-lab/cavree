@@ -113,11 +113,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/", request.url))
     }
 
-    if (isAdminRoute && !["ADMIN", "SUPER_ADMIN"].includes(role!)) {
+    if (isAdminRoute && !["ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"].includes(role!)) {
       return NextResponse.redirect(new URL("/", request.url))
     }
 
-    if (isFranchisePortalRoute && !["FRANCHISEE", "ADMIN", "SUPER_ADMIN"].includes(role!)) {
+    if (isFranchisePortalRoute && !["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"].includes(role!)) {
       return NextResponse.redirect(new URL("/", request.url))
     }
 
@@ -138,16 +138,16 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/franchise/dashboard", request.url))
     }
     if (pathname === "/") {
-      if (session && ["FRANCHISEE", "ADMIN", "SUPER_ADMIN"].includes(role!)) {
+      if (session && ["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"].includes(role!)) {
         return NextResponse.redirect(new URL("/franchise/dashboard", request.url))
       }
       loginUrl.searchParams.set("redirect", `https://${host}/franchise/dashboard`)
       return NextResponse.redirect(loginUrl)
     }
-    if (normalizedPathname !== pathname && session && ["FRANCHISEE", "ADMIN", "SUPER_ADMIN"].includes(role!)) {
+    if (normalizedPathname !== pathname && session && ["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"].includes(role!)) {
       return NextResponse.redirect(new URL(normalizedPathWithSearch, request.url))
     }
-    const result = requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const result = requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
     if (result) return result
     return NextResponse.next()
   }
@@ -170,16 +170,16 @@ export async function middleware(request: NextRequest) {
 
   if (subdomain === "admin") {
     if (pathname === "/") {
-      if (session && ["ADMIN", "SUPER_ADMIN"].includes(role!)) {
+      if (session && ["ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"].includes(role!)) {
         return NextResponse.redirect(new URL("/admin/dashboard", request.url))
       }
       loginUrl.searchParams.set("redirect", `https://${host}/admin/dashboard`)
       return NextResponse.redirect(loginUrl)
     }
-    if (normalizedPathname !== pathname && session && ["ADMIN", "SUPER_ADMIN"].includes(role!)) {
+    if (normalizedPathname !== pathname && session && ["ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"].includes(role!)) {
       return NextResponse.redirect(new URL(normalizedPathWithSearch, request.url))
     }
-    const result = requireAuth(["ADMIN", "SUPER_ADMIN"])
+    const result = requireAuth(["ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
     if (result) return result
     return NextResponse.next()
   }
