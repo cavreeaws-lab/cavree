@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
     const { searchParams } = new URL(request.url)
     const search = searchParams.get("search")
     const category = searchParams.get("category")

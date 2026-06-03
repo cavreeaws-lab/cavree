@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
     const product = await prisma.bulkProduct.findFirst({
       where: {
         isActive: true,

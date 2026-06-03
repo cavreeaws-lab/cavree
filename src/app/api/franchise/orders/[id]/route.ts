@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
     const order = await prisma.bulkOrder.findUnique({
       where: { id: params.id },
       include: {

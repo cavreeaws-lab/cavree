@@ -13,9 +13,33 @@ function LoginForm() {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
 
   const redirectParam = searchParams.get("redirect")
   const registered = searchParams.get("registered")
+
+  useEffect(() => {
+    async function checkExistingSession() {
+      try {
+        const res = await fetch("/api/auth/me")
+        if (res.ok) {
+          const data = await res.json()
+          if (data.user) {
+            const target = normalizeRedirectTarget(redirectParam || getRoleRedirect(data.user.role))
+            if (canRoleAccessTarget(data.user.role, target)) {
+              navigateAfterLogin(target)
+              return
+            }
+          }
+        }
+      } catch {
+        // ignore
+      } finally {
+        setCheckingSession(false)
+      }
+    }
+    checkExistingSession()
+  }, [redirectParam])
 
   useEffect(() => {
     if (registered === "1") {
@@ -61,12 +85,12 @@ function LoginForm() {
   const canRoleAccessTarget = (role: string | undefined, target: string) => {
     try {
       const url = /^https?:\/\//.test(target) ? new URL(target) : new URL(target, window.location.origin)
-      if (url.hostname === "admin.cavree.com") return role === "ADMIN" || role === "SUPER_ADMIN"
-      if (url.hostname === "franchise.cavree.com") return role === "FRANCHISEE" || role === "ADMIN" || role === "SUPER_ADMIN"
+      if (url.hostname === "admin.cavree.com") return role === "ADMIN" || role === "SUPER_ADMIN" || role === "FRANCHISE_STAFF"
+      if (url.hostname === "franchise.cavree.com") return role === "FRANCHISEE" || role === "ADMIN" || role === "SUPER_ADMIN" || role === "FRANCHISE_STAFF"
       if (url.hostname === "sales.cavree.com") return role === "SALES_EXECUTIVE" || role === "ADMIN" || role === "SUPER_ADMIN"
       if (url.hostname === "super-admin.cavree.com") return role === "SUPER_ADMIN"
-      if (url.pathname.startsWith("/admin")) return role === "FRANCHISEE" || role === "ADMIN" || role === "SUPER_ADMIN"
-      if (url.pathname.startsWith("/franchise/") && url.pathname !== "/franchise/apply") return role === "FRANCHISEE" || role === "ADMIN" || role === "SUPER_ADMIN"
+      if (url.pathname.startsWith("/admin")) return role === "ADMIN" || role === "SUPER_ADMIN" || role === "FRANCHISE_STAFF"
+      if (url.pathname.startsWith("/franchise/") && url.pathname !== "/franchise/apply" && url.pathname !== "/franchise/track") return role === "FRANCHISEE" || role === "ADMIN" || role === "SUPER_ADMIN" || role === "FRANCHISE_STAFF"
       if (url.pathname.startsWith("/sales")) return role === "SALES_EXECUTIVE" || role === "ADMIN" || role === "SUPER_ADMIN"
       if (url.pathname.startsWith("/super-admin")) return role === "SUPER_ADMIN"
       return true
@@ -82,12 +106,14 @@ function LoginForm() {
       if (role === "SUPER_ADMIN") return "/super-admin/dashboard"
       if (role === "ADMIN") return "/admin/dashboard"
       if (role === "FRANCHISEE") return "/franchise/dashboard"
+      if (role === "FRANCHISE_STAFF") return "/admin/dashboard"
       if (role === "SALES_EXECUTIVE") return "/sales/dashboard"
       return "/account/orders"
     }
     if (role === "SUPER_ADMIN") return "https://super-admin.cavree.com/super-admin/dashboard"
     if (role === "ADMIN") return "https://admin.cavree.com/admin/dashboard"
     if (role === "FRANCHISEE") return "https://franchise.cavree.com/franchise/dashboard"
+    if (role === "FRANCHISE_STAFF") return "https://admin.cavree.com/admin/dashboard"
     if (role === "SALES_EXECUTIVE") return "https://sales.cavree.com/sales/dashboard"
     return "/account/orders"
   }
@@ -187,10 +213,10 @@ function LoginForm() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={checkingSession || loading}
               className="w-full bg-cavree-primary hover:bg-cavree-primary-light disabled:opacity-50 text-white py-2.5 rounded-md font-medium transition-colors"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {checkingSession ? "Checking session..." : loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 

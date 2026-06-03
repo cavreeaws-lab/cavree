@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
-    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
     const where = session.role === "FRANCHISEE" ? { userId: session.userId as string } : {}
     const orders = await prisma.bulkOrder.findMany({
       where,

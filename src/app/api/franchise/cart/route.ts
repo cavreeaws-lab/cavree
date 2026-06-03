@@ -24,7 +24,7 @@ async function getCart(userId: string) {
 
 export async function GET() {
   try {
-    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
     return NextResponse.json(await getCart(session.userId as string))
   } catch (error: any) {
     if (error.message === "Unauthorized" || error.message === "Forbidden") {
@@ -36,7 +36,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
     const body = await request.json()
     const validation = validate(bulkCartItemSchema, body)
     if (!validation.success) {
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
     const { searchParams } = new URL(request.url)
     const itemId = searchParams.get("itemId")
     const cart = await prisma.bulkCart.findUnique({ where: { userId: session.userId as string } })

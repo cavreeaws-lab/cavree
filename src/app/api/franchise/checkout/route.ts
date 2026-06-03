@@ -14,7 +14,7 @@ function generateBulkOrderNumber() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
     const body = await request.json()
     const validation = validate(bulkCheckoutSchema, body)
     if (!validation.success) {

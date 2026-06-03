@@ -137,6 +137,9 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/admin")) {
       return NextResponse.redirect(new URL("/franchise/dashboard", request.url))
     }
+    if (pathname === "/franchise/apply" || pathname === "/franchise/track") {
+      return NextResponse.next()
+    }
     if (pathname === "/") {
       if (session && ["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"].includes(role!)) {
         return NextResponse.redirect(new URL("/franchise/dashboard", request.url))
