@@ -18,6 +18,9 @@ import {
   Bell,
   Search,
   UserCircle,
+  RotateCcw,
+  ScrollText,
+  MessageCircle,
 } from "lucide-react"
 
 const navItems = [
@@ -29,7 +32,10 @@ const navItems = [
   { href: "/super-admin/users", label: "Users", icon: Users },
   { href: "/super-admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/super-admin/content", label: "Content", icon: FileText },
+  { href: "/super-admin/returns", label: "Return Arbitration", icon: RotateCcw },
+  { href: "/super-admin/audit-logs", label: "Audit Logs", icon: ScrollText },
   { href: "/super-admin/settings", label: "Settings", icon: Settings },
+  { href: "/super-admin/settings/reviews", label: "Review Settings", icon: MessageCircle },
 ]
 
 export default function SuperAdminLayout({

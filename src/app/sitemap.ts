@@ -4,10 +4,9 @@ import { prisma } from "@/lib/prisma"
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cavree.com"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [products, categories, pages, posts] = await Promise.all([
+  const [products, categories, posts] = await Promise.all([
     prisma.product.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true } }),
     prisma.category.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true } }),
-    prisma.page.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true } }),
     prisma.blogPost.findMany({ where: { isPublished: true }, select: { slug: true, updatedAt: true } }),
   ])
 
@@ -17,6 +16,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/blog`, lastModified: new Date(), priority: 0.8 },
     { url: `${baseUrl}/about`, lastModified: new Date(), priority: 0.7 },
     { url: `${baseUrl}/contact`, lastModified: new Date(), priority: 0.7 },
+    { url: `${baseUrl}/franchise`, lastModified: new Date(), priority: 0.6 },
+    { url: `${baseUrl}/faq`, lastModified: new Date(), priority: 0.5 },
+    { url: `${baseUrl}/shipping`, lastModified: new Date(), priority: 0.5 },
+    { url: `${baseUrl}/returns`, lastModified: new Date(), priority: 0.5 },
+    { url: `${baseUrl}/privacy`, lastModified: new Date(), priority: 0.5 },
+    { url: `${baseUrl}/terms`, lastModified: new Date(), priority: 0.5 },
   ]
 
   products.forEach((p) =>
@@ -25,10 +30,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   categories.forEach((c) =>
     routes.push({ url: `${baseUrl}/shop?category=${c.slug}`, lastModified: c.updatedAt, priority: 0.7 })
-  )
-
-  pages.forEach((p) =>
-    routes.push({ url: `${baseUrl}/page/${p.slug}`, lastModified: p.updatedAt, priority: 0.6 })
   )
 
   posts.forEach((p) =>

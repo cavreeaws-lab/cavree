@@ -77,6 +77,9 @@ export function Header() {
             <Link href="/franchise" className="text-sm font-montserrat font-medium text-cavree-foreground hover:text-cavree-primary transition-colors">
               FRANCHISE
             </Link>
+            <Link href="/blog" className="text-sm font-montserrat font-medium text-cavree-foreground hover:text-cavree-primary transition-colors">
+              BLOG
+            </Link>
             <Link href="/about" className="text-sm font-montserrat font-medium text-cavree-foreground hover:text-cavree-primary transition-colors">
               ABOUT
             </Link>
@@ -119,6 +122,9 @@ export function Header() {
                   </Link>
                   <Link href="/account/orders" className="block px-4 py-2 text-sm hover:bg-cavree-light transition-colors">
                     My Orders
+                  </Link>
+                  <Link href="/account/tickets" className="block px-4 py-2 text-sm hover:bg-cavree-light transition-colors">
+                    My Tickets
                   </Link>
                   {user.role === "FRANCHISEE" && (
                     <Link href="/franchise/dashboard" className="block px-4 py-2 text-sm hover:bg-cavree-light transition-colors">
@@ -184,6 +190,9 @@ export function Header() {
             </Link>
             <Link href="/franchise" className="block py-3 text-sm font-medium border-b border-cavree-border" onClick={() => setMobileMenuOpen(false)}>
               FRANCHISE
+            </Link>
+            <Link href="/blog" className="block py-3 text-sm font-medium border-b border-cavree-border" onClick={() => setMobileMenuOpen(false)}>
+              BLOG
             </Link>
             <Link href="/about" className="block py-3 text-sm font-medium border-b border-cavree-border" onClick={() => setMobileMenuOpen(false)}>
               ABOUT

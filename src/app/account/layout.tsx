@@ -10,10 +10,12 @@ import {
   User,
   LogOut,
   Wallet,
+  Ticket,
 } from "lucide-react"
 
 const navItems = [
   { href: "/account/orders", label: "My Orders", icon: Package },
+  { href: "/account/tickets", label: "Support Tickets", icon: Ticket },
   { href: "/account/addresses", label: "Addresses", icon: MapPin },
   { href: "/account/wallet", label: "Wallet", icon: Wallet },
   { href: "/account/wishlist", label: "Wishlist", icon: Heart },

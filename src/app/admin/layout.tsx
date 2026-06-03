@@ -27,6 +27,9 @@ import {
   Search,
   UserCircle,
   LogOut,
+  Shield,
+  Truck,
+  Newspaper,
 } from "lucide-react"
 
 const navGroups = [
@@ -61,7 +64,12 @@ const navGroups = [
   {
     label: "Operations",
     items: [
+      { href: "/admin/staff", label: "Staff", icon: Shield },
+      { href: "/admin/tickets", label: "Support Tickets", icon: Ticket },
+      { href: "/admin/shipping", label: "Shipping", icon: Truck },
       { href: "/admin/content", label: "Content", icon: FileText },
+      { href: "/admin/blog/posts", label: "Blog Posts", icon: Newspaper },
+      { href: "/admin/blog/categories", label: "Blog Categories", icon: Newspaper },
       { href: "/admin/commissions", label: "Commissions", icon: Percent },
       { href: "/admin/reports", label: "Reports", icon: BarChart3 },
       { href: "/admin/settings", label: "Settings", icon: Settings },
