@@ -46,6 +46,18 @@ export default function SuperAdminDashboardPage() {
       .catch(() => {})
   }, [])
 
+  const statusData = useMemo(() => {
+    const orders = ordersData?.orders || []
+    const counts: Record<string, number> = {}
+    orders.forEach((o: any) => {
+      counts[o.status] = (counts[o.status] || 0) + 1
+    })
+    return ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"].map((status) => ({
+      name: status,
+      value: counts[status] || 0,
+    }))
+  }, [ordersData])
+
   if (loading || !data) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -65,18 +77,6 @@ export default function SuperAdminDashboardPage() {
     { label: "Platform Revenue", value: `₹${(s.totalRevenue / 10000000).toFixed(1)}Cr`, change: "+15%", icon: IndianRupee },
   ]
   const topFranchises = data.topFranchises || []
-
-  const statusData = useMemo(() => {
-    const orders = ordersData?.orders || []
-    const counts: Record<string, number> = {}
-    orders.forEach((o: any) => {
-      counts[o.status] = (counts[o.status] || 0) + 1
-    })
-    return ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"].map((status) => ({
-      name: status,
-      value: counts[status] || 0,
-    }))
-  }, [ordersData])
 
   return (
     <div className="space-y-6">

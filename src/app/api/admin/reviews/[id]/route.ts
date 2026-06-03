@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
+import { getAdminScope, logActivity } from "@/lib/admin"
 
 export const dynamic = "force-dynamic"
 
@@ -9,7 +10,8 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const scope = await getAdminScope(session)
     const body = await request.json()
     const { isApproved } = body
 
@@ -17,13 +19,24 @@ export async function PUT(
       return NextResponse.json({ error: "isApproved must be a boolean" }, { status: 400 })
     }
 
+    const existing = await prisma.review.findFirst({
+      where: { id: params.id, product: scope.franchiseId ? { franchiseId: scope.franchiseId } : undefined },
+    })
+    if (!existing) return NextResponse.json({ error: "Review not found" }, { status: 404 })
+
     const review = await prisma.review.update({
-      where: { id: params.id },
+      where: { id: existing.id },
       data: { isApproved },
       include: {
         user: { select: { name: true } },
         product: { select: { name: true } },
       },
+    })
+    await logActivity({
+      userId: scope.userId,
+      action: isApproved ? "APPROVE" : "REJECT",
+      entity: "Review",
+      entityId: review.id,
     })
 
     return NextResponse.json({ review })
@@ -40,8 +53,14 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
-    await prisma.review.delete({ where: { id: params.id } })
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const scope = await getAdminScope(session)
+    const existing = await prisma.review.findFirst({
+      where: { id: params.id, product: scope.franchiseId ? { franchiseId: scope.franchiseId } : undefined },
+    })
+    if (!existing) return NextResponse.json({ error: "Review not found" }, { status: 404 })
+    await prisma.review.delete({ where: { id: existing.id } })
+    await logActivity({ userId: scope.userId, action: "DELETE", entity: "Review", entityId: existing.id })
     return NextResponse.json({ message: "Review deleted" })
   } catch (error: any) {
     if (error.message === "Unauthorized" || error.message === "Forbidden") {

@@ -2,16 +2,90 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useCart } from "@/hooks/useCart"
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Tag, CheckCircle } from "lucide-react"
 import toast from "react-hot-toast"
 
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL"]
+
+function sizeRank(size?: string) {
+  const index = SIZE_ORDER.indexOf(size || "")
+  return index === -1 ? SIZE_ORDER.length : index
+}
+
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, getTotalPrice, clearCart } = useCart()
+  const { items, removeItem, updateQuantity, updateVariant, getTotalPrice, clearCart } = useCart()
   const [couponCode, setCouponCode] = useState("")
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null)
   const [applyingCoupon, setApplyingCoupon] = useState(false)
+  const [productDetails, setProductDetails] = useState<Record<string, any>>({})
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+    const slugs = Array.from(new Set(items.map((item) => item.product.slug).filter(Boolean)))
+    const missingSlugs = slugs.filter((slug) => !productDetails[slug])
+    if (missingSlugs.length === 0) return
+
+    let cancelled = false
+    Promise.all(
+      missingSlugs.map((slug) =>
+        fetch(`/api/products/${slug}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => [slug, data?.product || null] as const)
+          .catch(() => [slug, null] as const)
+      )
+    ).then((entries) => {
+      if (cancelled) return
+      setProductDetails((current) => {
+        const next = { ...current }
+        entries.forEach(([slug, product]) => {
+          if (product) next[slug] = product
+        })
+        return next
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [items, productDetails, mounted])
+
+  const getVariantsForItem = (item: any) => {
+    const variants = productDetails[item.product.slug]?.variants || item.product.variants || []
+    return variants
+      .slice()
+      .sort((a: any, b: any) => sizeRank(a.size) - sizeRank(b.size) || (a.size || "").localeCompare(b.size || ""))
+  }
+
+  const cartIssues = useMemo(() => {
+    return items.flatMap((item) => {
+      const variants = getVariantsForItem(item)
+      if (variants.length === 0) return []
+      const selectedVariant = variants.find((variant: any) => variant.id === item.product.variant?.id)
+      if (!selectedVariant) return [`Please select a size for ${item.product.name}`]
+      if ((selectedVariant.quantity ?? 0) < item.quantity) {
+        return [`${item.product.name} has only ${selectedVariant.quantity ?? 0} units available in ${selectedVariant.size || "selected size"}`]
+      }
+      return []
+    })
+  }, [items, productDetails])
+
+  const canCheckout = cartIssues.length === 0
+
+  if (!mounted) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="font-playfair text-3xl font-bold mb-8">Shopping Cart</h1>
+        <div className="h-48 rounded-lg border border-cavree-border animate-pulse bg-cavree-light" />
+      </div>
+    )
+  }
 
   if (items.length === 0) {
     return (
@@ -30,10 +104,8 @@ export default function CartPage() {
   }
 
   const subtotal = getTotalPrice()
-  const shipping = subtotal > 5000 ? 0 : 150
-  const tax = Math.round(subtotal * 0.05)
   const discount = appliedCoupon ? Math.min(appliedCoupon.discount, subtotal) : 0
-  const total = subtotal + shipping + tax - discount
+  const total = Math.max(0, subtotal - discount)
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return
@@ -89,6 +161,33 @@ export default function CartPage() {
                     <p className="text-sm text-cavree-muted font-poppins mt-0.5">
                       {item.product.variant.size} {item.product.variant.color}
                     </p>
+                  )}
+                  {getVariantsForItem(item).length > 0 && (
+                    <div className="mt-2 max-w-xs">
+                      <label className="block text-xs font-medium text-cavree-muted mb-1">Size</label>
+                      <select
+                        value={item.product.variant?.id || ""}
+                        onChange={(event) => {
+                          const variant = getVariantsForItem(item).find((entry: any) => entry.id === event.target.value)
+                          if (!variant) return
+                          updateVariant(item.id, {
+                            id: variant.id,
+                            size: variant.size,
+                            color: variant.color,
+                            price: variant.price,
+                            quantity: variant.quantity,
+                          })
+                        }}
+                        className="w-full border border-cavree-border rounded-md px-3 py-2 text-sm outline-none focus:border-cavree-primary"
+                      >
+                        <option value="">Select size</option>
+                        {getVariantsForItem(item).map((variant: any) => (
+                          <option key={variant.id} value={variant.id} disabled={(variant.quantity ?? 0) <= 0}>
+                            {variant.size || variant.color || "One size"} {(variant.quantity ?? 0) <= 0 ? "(Out of stock)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   )}
                   <p className="font-montserrat font-semibold mt-2">
                     {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
@@ -178,16 +277,6 @@ export default function CartPage() {
                 <span className="text-cavree-muted">Subtotal</span>
                 <span className="font-medium">{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(subtotal)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-cavree-muted">Shipping</span>
-                <span className="font-medium">
-                  {shipping === 0 ? "FREE" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(shipping)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-cavree-muted">Tax (5% GST)</span>
-                <span className="font-medium">{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(tax)}</span>
-              </div>
               {discount > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span className="font-medium">Discount</span>
@@ -201,17 +290,29 @@ export default function CartPage() {
                 </span>
               </div>
             </div>
-            {subtotal < 5000 && (
-              <p className="text-xs text-cavree-muted mt-3 font-poppins">
-                Add {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(5000 - subtotal)} more for free shipping
-              </p>
+            {cartIssues.length > 0 && (
+              <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 font-poppins space-y-1">
+                {cartIssues.map((issue) => (
+                  <p key={issue}>{issue}</p>
+                ))}
+              </div>
             )}
-            <Link
-              href="/checkout"
-              className="mt-6 w-full bg-cavree-primary hover:bg-cavree-primary-light text-white py-3.5 rounded-md font-medium flex items-center justify-center gap-2 transition-colors"
-            >
-              Proceed to Checkout <ArrowRight size={18} />
-            </Link>
+            {canCheckout ? (
+              <Link
+                href="/checkout"
+                className="mt-6 w-full bg-cavree-primary hover:bg-cavree-primary-light text-white py-3.5 rounded-md font-medium flex items-center justify-center gap-2 transition-colors"
+              >
+                Proceed to Checkout <ArrowRight size={18} />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => toast.error("Please fix cart size selections before checkout")}
+                className="mt-6 w-full bg-cavree-primary/60 text-white py-3.5 rounded-md font-medium flex items-center justify-center gap-2 cursor-not-allowed"
+              >
+                Proceed to Checkout <ArrowRight size={18} />
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -13,8 +13,12 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  FileText,
+  RotateCcw,
+  ShoppingBag,
 } from "lucide-react"
 import toast from "react-hot-toast"
+import { useCart } from "@/hooks/useCart"
 
 const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800",
@@ -39,9 +43,12 @@ const statusIcons: Record<string, React.ReactNode> = {
 export default function OrderDetailPage() {
   const params = useParams()
   const orderId = params.id as string
+  const { addItem } = useCart()
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [cancelling, setCancelling] = useState(false)
+  const [returnReason, setReturnReason] = useState("")
+  const [submittingReturn, setSubmittingReturn] = useState(false)
 
   useEffect(() => {
     fetch(`/api/orders/${orderId}`)
@@ -103,6 +110,67 @@ export default function OrderDetailPage() {
   }
 
   const canCancel = order.status === "PENDING"
+  const canReturn = ["SHIPPED", "DELIVERED"].includes(order.status)
+  const statusSteps = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED"]
+  const currentStep = Math.max(0, statusSteps.indexOf(order.status))
+
+  const printInvoice = async () => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}/invoice`)
+      const data = await res.json()
+      if (!res.ok) throw new Error()
+      toast.success(`Invoice ready: ${data.invoice.invoiceNumber}`)
+      window.print()
+    } catch {
+      toast.error("Failed to prepare invoice")
+    }
+  }
+
+  const reorder = () => {
+    const reorderableItems = order.items.filter((item: any) => item.productId)
+
+    if (reorderableItems.length === 0) {
+      toast.error("These products are no longer available to reorder")
+      return
+    }
+
+    reorderableItems.forEach((item: any) => {
+      addItem({
+        id: item.productId,
+        name: item.name,
+        slug: item.product?.slug || "",
+        price: item.price,
+        image: item.product?.images?.[0]?.url || "/images/placeholder.jpg",
+      }, item.quantity, item.variantId ? { id: item.variantId, size: item.size, color: item.color, price: item.price } : undefined)
+    })
+    toast.success(reorderableItems.length === order.items.length ? "Items added to cart" : "Available items added to cart")
+  }
+
+  const submitReturn = async () => {
+    if (!returnReason.trim()) {
+      toast.error("Please enter a return reason")
+      return
+    }
+    setSubmittingReturn(true)
+    try {
+      const res = await fetch("/api/returns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, reason: returnReason }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || "Failed to request return")
+        return
+      }
+      setReturnReason("")
+      toast.success("Return request submitted")
+    } catch {
+      toast.error("Failed to request return")
+    } finally {
+      setSubmittingReturn(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -132,6 +200,31 @@ export default function OrderDetailPage() {
               {cancelling ? "Cancelling..." : "Cancel Order"}
             </button>
           )}
+          <button onClick={printInvoice} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-cavree-border hover:bg-cavree-light transition-colors">
+            <FileText size={14} />
+            Print Invoice
+          </button>
+          <button onClick={reorder} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-cavree-border hover:bg-cavree-light transition-colors">
+            <ShoppingBag size={14} />
+            Reorder
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white border border-cavree-border rounded-lg p-6">
+        <h3 className="font-montserrat font-semibold text-sm mb-4">Order Timeline</h3>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+          {statusSteps.map((step, index) => {
+            const complete = currentStep >= index && !["CANCELLED", "RETURNED"].includes(order.status)
+            return (
+              <div key={step} className={`rounded-lg border p-3 ${complete ? "border-cavree-primary bg-cavree-primary/5" : "border-cavree-border"}`}>
+                <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-full ${complete ? "bg-cavree-primary text-white" : "bg-cavree-light text-cavree-muted"}`}>
+                  <CheckCircle size={16} />
+                </div>
+                <p className="text-sm font-medium">{step}</p>
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -253,6 +346,23 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {canReturn && (
+        <div className="bg-white border border-cavree-border rounded-lg p-6">
+          <h3 className="font-montserrat font-semibold text-sm mb-3 flex items-center gap-2"><RotateCcw size={16} className="text-cavree-primary" />Return or Exchange</h3>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              value={returnReason}
+              onChange={(e) => setReturnReason(e.target.value)}
+              placeholder="Reason for return or exchange"
+              className="flex-1 rounded-md border border-cavree-border px-3 py-2 text-sm outline-none focus:border-cavree-primary"
+            />
+            <button onClick={submitReturn} disabled={submittingReturn} className="rounded-md bg-cavree-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+              {submittingReturn ? "Submitting..." : "Submit Request"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

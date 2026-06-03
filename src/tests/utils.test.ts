@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { formatPrice, formatDate, generateSlug, getInitials } from "@/lib/utils"
+import { formatPrice, formatDate, generateSlug, getInitials, getProductDiscount } from "@/lib/utils"
 
 describe("formatPrice", () => {
   it("formats INR correctly", () => {
@@ -29,5 +29,21 @@ describe("getInitials", () => {
     expect(getInitials("John Doe")).toBe("JD")
     expect(getInitials("Alice")).toBe("A")
     expect(getInitials("")).toBe("")
+  })
+})
+
+describe("getProductDiscount", () => {
+  it("calculates discount percentage and amount", () => {
+    expect(getProductDiscount(849, 2499)).toEqual({
+      amount: 1650,
+      percent: 66,
+      label: "66% OFF",
+    })
+  })
+
+  it("returns null without a valid compare price", () => {
+    expect(getProductDiscount(1000, null)).toBeNull()
+    expect(getProductDiscount(1000, 999)).toBeNull()
+    expect(getProductDiscount(1000, 1000)).toBeNull()
   })
 })

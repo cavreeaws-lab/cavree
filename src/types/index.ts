@@ -3,7 +3,7 @@ export interface User {
   email: string
   name: string | null
   image: string | null
-  role: "CUSTOMER" | "FRANCHISEE" | "ADMIN" | "SUPER_ADMIN"
+  role: "CUSTOMER" | "FRANCHISEE" | "SALES_EXECUTIVE" | "ADMIN" | "SUPER_ADMIN"
   phone: string | null
 }
 
@@ -35,20 +35,46 @@ export interface Product {
   name: string
   slug: string
   description: string | null
+  modelNumber: string | null
+  productType: string | null
+  shirtType: string | null
   sku: string
+  brand: string | null
+  barcode: string | null
   price: number
   comparePrice: number | null
+  costPrice: number | null
+  singlePiecePrice: number | null
+  franchiseBulkPrice: number | null
+  minimumQuantityLimit: number | null
   quantity: number
   weight: number | null
+  dimensions: { length?: number; width?: number; height?: number } | null
+  trackQuantity: boolean
+  allowBackorders: boolean
+  lowStockThreshold: number
   isActive: boolean
   isFeatured: boolean
   isNew: boolean
+  tags: string[]
+  metaTitle: string | null
+  metaDescription: string | null
   category: Category
   franchise: Franchise
   images: ProductImage[]
+  media?: ProductMedia[]
   variants: ProductVariant[]
   reviews?: Review[]
   _count?: { reviews: number }
+}
+
+export interface ProductMedia {
+  id: string
+  type: "IMAGE" | "VIDEO"
+  url: string
+  posterUrl: string | null
+  alt: string | null
+  sortOrder: number
 }
 
 export interface ProductImage {
@@ -115,6 +141,8 @@ export interface Order {
 
 export interface OrderItem {
   id: string
+  productId: string | null
+  variantId: string | null
   name: string
   sku: string
   price: number
@@ -169,4 +197,32 @@ export interface DashboardStats {
   totalProducts: number
   recentOrders: Order[]
   salesData: { month: string; sales: number }[]
+}
+
+export interface BulkProduct {
+  id: string
+  productId: string
+  name: string
+  slug: string
+  description: string | null
+  category: string
+  image: string | null
+  media?: any
+  singlePiecePrice: number
+  wholesalePrice: number
+  unitSize: number
+  minUnits: number
+  availableUnits: number
+  isActive: boolean
+}
+
+export interface Retailer {
+  id: string
+  businessName: string
+  ownerName: string
+  email: string
+  phone: string
+  franchiseCode: string
+  status: string
+  membershipTier: string
 }

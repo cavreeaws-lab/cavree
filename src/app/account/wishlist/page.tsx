@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Heart, ShoppingBag, Trash2 } from "lucide-react"
 import toast from "react-hot-toast"
+import { PriceDisplay } from "@/components/PriceDisplay"
 import { useCart } from "@/hooks/useCart"
 
 interface WishlistItem {
@@ -14,6 +15,7 @@ interface WishlistItem {
     name: string
     slug: string
     price: number
+    comparePrice?: number | null
     images: { url: string }[]
   }
 }
@@ -116,9 +118,9 @@ export default function WishlistPage() {
               <Link href={`/product/${item.product.slug}`}>
                 <h3 className="font-medium text-sm line-clamp-1 hover:text-cavree-primary transition-colors">{item.product.name}</h3>
               </Link>
-              <p className="font-montserrat font-semibold text-sm mt-1">
-                {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(item.product.price)}
-              </p>
+              <div className="mt-1">
+                <PriceDisplay price={item.product.price} comparePrice={item.product.comparePrice} size="sm" />
+              </div>
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={() => addToCart(item)}

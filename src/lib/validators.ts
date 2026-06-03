@@ -12,11 +12,11 @@ export const loginSchema = z.object({
 })
 
 export const registerSchema = z.object({
-  email: z.string().email("Invalid email"),
+  email: z.string().trim().toLowerCase().email("Invalid email"),
   password: passwordSchema,
   name: z.string().min(1, "Name is required"),
   phone: z.string().optional(),
-  role: z.enum(["CUSTOMER", "FRANCHISEE", "ADMIN", "SUPER_ADMIN"]).optional(),
+  role: z.enum(["CUSTOMER", "FRANCHISEE", "SALES_EXECUTIVE", "ADMIN", "SUPER_ADMIN"]).optional(),
 })
 
 export const profileUpdateSchema = z.object({
@@ -53,6 +53,7 @@ export const createOrderSchema = z.object({
   paymentMethod: z.enum(["RAZORPAY", "COD"]),
   couponCode: z.string().optional(),
   notes: z.string().optional(),
+  idempotencyKey: z.string().trim().min(8).max(120).optional(),
 })
 
 export const paymentCreateSchema = z.object({
@@ -69,18 +70,51 @@ export const productUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   slug: z.string().optional(),
   description: z.string().optional(),
+  modelNumber: z.string().optional(),
+  productType: z.string().optional(),
+  shirtType: z.string().optional(),
+  brand: z.string().optional(),
+  barcode: z.string().optional(),
   price: z.number().positive().optional(),
   compareAtPrice: z.number().optional(),
+  costPrice: z.number().optional(),
+  singlePiecePrice: z.number().optional(),
+  franchiseBulkPrice: z.number().optional(),
+  minimumQuantityLimit: z.number().int().min(0).optional(),
   sku: z.string().optional(),
   quantity: z.number().int().min(0).optional(),
+  weight: z.number().optional(),
+  dimensions: z.object({
+    length: z.number().optional(),
+    width: z.number().optional(),
+    height: z.number().optional(),
+  }).optional(),
+  trackQuantity: z.boolean().optional(),
+  allowBackorders: z.boolean().optional(),
+  lowStockThreshold: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
+  isNew: z.boolean().optional(),
+  tags: z.array(z.string()).optional(),
+  metaTitle: z.string().optional(),
+  metaDescription: z.string().optional(),
   categoryId: z.string().optional(),
-  images: z.array(z.object({ url: z.string() })).optional(),
+  images: z.array(z.object({ url: z.string(), alt: z.string().optional() })).optional(),
+  media: z.array(z.object({
+    type: z.enum(["IMAGE", "VIDEO"]).default("IMAGE"),
+    url: z.string().min(1),
+    posterUrl: z.string().optional(),
+    alt: z.string().optional(),
+  })).optional(),
   variants: z.array(
     z.object({
-      name: z.string(),
-      value: z.string(),
+      id: z.string().optional(),
+      name: z.string().optional(),
+      value: z.string().optional(),
+      size: z.string().optional(),
+      color: z.string().optional(),
+      colorCode: z.string().optional(),
+      sku: z.string().optional(),
       price: z.number().optional(),
       quantity: z.number().int().optional(),
     })
@@ -91,19 +125,51 @@ export const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
   slug: z.string().optional(),
   description: z.string().optional(),
+  modelNumber: z.string().optional(),
+  productType: z.string().optional(),
+  shirtType: z.string().optional(),
+  brand: z.string().optional(),
+  barcode: z.string().optional(),
   price: z.number().positive("Price must be positive"),
   compareAtPrice: z.number().optional(),
+  costPrice: z.number().optional(),
+  singlePiecePrice: z.number().optional(),
+  franchiseBulkPrice: z.number().optional(),
+  minimumQuantityLimit: z.number().int().min(0).optional(),
   sku: z.string().min(1, "SKU is required"),
   quantity: z.number().int().min(0).optional(),
+  weight: z.number().optional(),
+  dimensions: z.object({
+    length: z.number().optional(),
+    width: z.number().optional(),
+    height: z.number().optional(),
+  }).optional(),
+  trackQuantity: z.boolean().optional(),
+  allowBackorders: z.boolean().optional(),
+  lowStockThreshold: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
+  isNew: z.boolean().optional(),
+  tags: z.array(z.string()).optional(),
+  metaTitle: z.string().optional(),
+  metaDescription: z.string().optional(),
   categoryId: z.string().min(1, "Category is required"),
   franchiseId: z.string().optional(),
-  images: z.array(z.object({ url: z.string() })).optional(),
+  images: z.array(z.object({ url: z.string(), alt: z.string().optional() })).optional(),
+  media: z.array(z.object({
+    type: z.enum(["IMAGE", "VIDEO"]).default("IMAGE"),
+    url: z.string().min(1),
+    posterUrl: z.string().optional(),
+    alt: z.string().optional(),
+  })).optional(),
   variants: z.array(
     z.object({
-      name: z.string(),
-      value: z.string(),
+      name: z.string().optional(),
+      value: z.string().optional(),
+      size: z.string().optional(),
+      color: z.string().optional(),
+      colorCode: z.string().optional(),
+      sku: z.string().optional(),
       price: z.number().optional(),
       quantity: z.number().int().optional(),
     })
@@ -111,6 +177,16 @@ export const productSchema = z.object({
 })
 
 export const orderStatusUpdateSchema = z.object({
+  status: z.enum(["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED", "REFUNDED"]),
+  trackingNumber: z.string().optional(),
+  carrier: z.string().optional(),
+  trackingUrl: z.string().optional(),
+  estimatedDate: z.string().or(z.date()).optional(),
+  notes: z.string().optional(),
+})
+
+export const bulkOrderStatusSchema = z.object({
+  orderIds: z.array(z.string().min(1)).min(1, "Select at least one order"),
   status: z.enum(["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED", "REFUNDED"]),
 })
 
@@ -138,15 +214,91 @@ export const createUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
   password: passwordSchema,
-  role: z.enum(["CUSTOMER", "FRANCHISEE", "ADMIN", "SUPER_ADMIN"]).optional(),
+  role: z.enum(["CUSTOMER", "FRANCHISEE", "SALES_EXECUTIVE", "ADMIN", "SUPER_ADMIN"]).optional(),
   phone: z.string().optional(),
+})
+
+export const retailerSchema = z.object({
+  businessName: z.string().min(1, "Business name is required"),
+  ownerName: z.string().min(1, "Owner name is required"),
+  email: z.string().email("Invalid email"),
+  phone: z.string().min(8, "Phone is required"),
+  gstNumber: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  categoryInterests: z.array(z.string()).optional(),
+  membershipTier: z.string().optional(),
+  status: z.string().optional(),
+  franchiseCode: z.string().optional(),
+  paymentStatus: z.string().optional(),
+  agreementStatus: z.string().optional(),
+  renewalStatus: z.string().optional(),
+  warehouseStockValue: z.number().min(0).optional(),
+  salesExecutiveId: z.string().optional(),
+  franchiseId: z.string().optional(),
+  notes: z.string().optional(),
+})
+
+export const salesExecutiveSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email"),
+  password: passwordSchema.optional(),
+  phone: z.string().optional(),
+  isActive: z.boolean().optional(),
+})
+
+export const bulkProductSchema = z.object({
+  productId: z.string().min(1, "Product ID is required"),
+  name: z.string().min(1, "Name is required"),
+  slug: z.string().optional(),
+  description: z.string().optional(),
+  productType: z.string().optional(),
+  shirtType: z.string().optional(),
+  modelNumber: z.string().optional(),
+  category: z.string().min(1, "Category is required"),
+  image: z.string().optional(),
+  media: z.any().optional(),
+  singlePiecePrice: z.number().min(0).optional(),
+  wholesalePrice: z.number().positive("Wholesale price is required"),
+  unitSize: z.number().int().min(1).optional(),
+  minUnits: z.number().int().min(1).optional(),
+  availableUnits: z.number().int().min(0).optional(),
+  specs: z.any().optional(),
+  isActive: z.boolean().optional(),
+  isFeatured: z.boolean().optional(),
+})
+
+export const bulkCartItemSchema = z.object({
+  productId: z.string().min(1),
+  unitCount: z.number().int().min(1),
+})
+
+export const bulkCheckoutSchema = z.object({
+  franchiseCode: z.string().min(1, "Franchise code is required"),
+  password: z.string().min(8, "Password is required"),
+  paymentMethod: z.string().min(1),
+  deliveryName: z.string().optional(),
+  deliveryPhone: z.string().optional(),
+  deliveryAddress: z.string().optional(),
+  deliveryCity: z.string().optional(),
+  deliveryState: z.string().optional(),
+  notes: z.string().optional(),
 })
 
 export const franchiseApplicationSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  businessName: z.string().optional(),
+  ownerName: z.string().optional(),
   email: z.string().email("Invalid email"),
+  password: passwordSchema.optional(),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
   city: z.string().min(1, "City is required"),
+  state: z.string().optional(),
+  address: z.string().optional(),
+  gstNumber: z.string().optional(),
+  categoryInterests: z.array(z.string()).optional(),
+  membershipTier: z.string().optional(),
   investment: z.string().min(1, "Investment amount is required"),
   space: z.string().min(1, "Space details are required"),
 })
@@ -163,6 +315,13 @@ export const settingsUpdateSchema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email().optional(),
+  adminId: z.string().optional(),
+  accentColor: z.string().optional(),
+  theme: z.string().optional(),
+  notifications: z.string().optional(),
+  region: z.string().optional(),
+  currentPassword: z.string().optional(),
+  newPassword: passwordSchema.optional(),
 })
 
 export const categorySchema = z.object({
@@ -180,6 +339,7 @@ export const couponSchema = z.object({
   minOrder: z.number().min(0).optional(),
   maxDiscount: z.number().positive().optional(),
   usageLimit: z.number().int().positive().optional(),
+  perCustomerLimit: z.number().int().positive().optional(),
   startDate: z.string().or(z.date()),
   endDate: z.string().or(z.date()).optional(),
 })
@@ -187,7 +347,14 @@ export const couponSchema = z.object({
 export const fileUploadSchema = z.object({
   filename: z.string().min(1, "Filename is required"),
   contentType: z.string().min(1, "Content type is required"),
-  size: z.number().int().max(10 * 1024 * 1024, "File must be under 10MB").optional(),
+  size: z.number().int().positive("File size is required").max(100 * 1024 * 1024, "File must be under 100MB"),
+})
+
+export const returnRequestSchema = z.object({
+  orderId: z.string().min(1),
+  productId: z.string().optional(),
+  type: z.enum(["RETURN", "EXCHANGE"]).default("RETURN"),
+  reason: z.string().min(3, "Reason is required"),
 })
 
 export function validate<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; errors: z.ZodError } {

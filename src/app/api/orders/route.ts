@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth"
 import { rateLimit } from "@/lib/rate-limit"
 import { validate, createOrderSchema } from "@/lib/validators"
 import { sendOrderConfirmationEmail } from "@/lib/email"
+import { generateOrderNumber } from "@/lib/admin"
 
 export const dynamic = "force-dynamic"
 
@@ -48,22 +49,44 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  let idempotencyKey: string | undefined
+  let userId = ""
   try {
     const limit = rateLimit(request, 10, 60 * 1000)
     if (!limit.success) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 })
     }
     const session = await requireAuth()
+    userId = session.userId as string
     const body = await request.json()
     const validation = validate(createOrderSchema, body)
     if (!validation.success) {
       return NextResponse.json({ error: validation.errors.flatten().fieldErrors }, { status: 400 })
     }
     const { items, addressId, paymentMethod, couponCode, notes } = validation.data
+    idempotencyKey = validation.data.idempotencyKey
+
+    if (idempotencyKey) {
+      const existingOrder = await prisma.order.findFirst({
+        where: { userId, idempotencyKey },
+        include: {
+          items: true,
+          payment: true,
+          shippingDetail: true,
+        },
+      })
+
+      if (existingOrder) {
+        return NextResponse.json(
+          { order: existingOrder, message: "Order already created", idempotent: true },
+          { status: 200 }
+        )
+      }
+    }
 
     // Validate address belongs to user
     const address = await prisma.address.findFirst({
-      where: { id: addressId, userId: session.userId as string },
+      where: { id: addressId, userId },
     })
     if (!address) {
       return NextResponse.json({ error: "Invalid address" }, { status: 400 })
@@ -92,6 +115,12 @@ export async function POST(request: NextRequest) {
       }
 
       const variant = item.variantId ? product.variants.find((v: any) => v.id === item.variantId) : null
+      if (product.variants.length > 0 && !item.variantId) {
+        return NextResponse.json(
+          { error: `Please select a size for ${product.name}` },
+          { status: 400 }
+        )
+      }
       if (item.variantId && !variant) {
         return NextResponse.json(
           { error: `Invalid variant for ${product.name}` },
@@ -135,7 +164,7 @@ export async function POST(request: NextRequest) {
     }
     const franchiseId = Array.from(franchiseIds)[0]
 
-    const shipping = subtotal > 5000 ? 0 : 150
+    const shipping = 0
     let discount = 0
     let appliedCoupon = null
 
@@ -152,6 +181,14 @@ export async function POST(request: NextRequest) {
         if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
           return NextResponse.json({ error: "Coupon usage limit reached" }, { status: 400 })
         }
+        if (coupon.perCustomerLimit) {
+          const usageCount = await prisma.couponUsage.count({
+            where: { couponId: coupon.id, userId },
+          })
+          if (usageCount >= coupon.perCustomerLimit) {
+            return NextResponse.json({ error: "Coupon already used for this account" }, { status: 400 })
+          }
+        }
         if (coupon.type === "PERCENTAGE") {
           discount = Math.min((subtotal * coupon.value) / 100, coupon.maxDiscount || Infinity)
         } else {
@@ -161,8 +198,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const total = Math.max(0, subtotal + shipping - discount)
-    const orderNumber = `ORD-${Date.now()}`
+    const tax = 0
+    const total = Math.max(0, subtotal - discount)
+    const orderNumber = generateOrderNumber()
 
     const order = await prisma.$transaction(async (tx: any) => {
       // Decrement stock with guard to prevent negative inventory under concurrency
@@ -191,6 +229,13 @@ export async function POST(request: NextRequest) {
           where: { id: appliedCoupon.id },
           data: { usageCount: { increment: 1 } },
         })
+        await tx.couponUsage.create({
+          data: {
+            couponId: appliedCoupon.id,
+            userId,
+            discount,
+          },
+        })
       }
 
       return await tx.order.create({
@@ -200,11 +245,12 @@ export async function POST(request: NextRequest) {
           subtotal,
           discount,
           shipping,
-          tax: 0,
+          tax,
           total,
           couponCode: couponCode || null,
           notes: notes || null,
-          userId: session.userId as string,
+          idempotencyKey: idempotencyKey || null,
+          userId,
           addressId,
           franchiseId,
           items: { create: orderItemsData },
@@ -231,7 +277,7 @@ export async function POST(request: NextRequest) {
 
     // Send confirmation email asynchronously (don't block response)
     const user = await prisma.user.findUnique({
-      where: { id: session.userId as string },
+      where: { id: userId },
       select: { email: true },
     })
     if (user?.email) {
@@ -252,6 +298,22 @@ export async function POST(request: NextRequest) {
     }
     if (error.message?.startsWith("Insufficient stock")) {
       return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+    if (error.code === "P2002" && idempotencyKey && userId) {
+      const existingOrder = await prisma.order.findFirst({
+        where: { userId, idempotencyKey },
+        include: {
+          items: true,
+          payment: true,
+          shippingDetail: true,
+        },
+      })
+      if (existingOrder) {
+        return NextResponse.json(
+          { order: existingOrder, message: "Order already created", idempotent: true },
+          { status: 200 }
+        )
+      }
     }
     console.error("Order creation error:", error)
     return NextResponse.json(

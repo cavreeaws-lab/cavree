@@ -14,6 +14,7 @@ export async function GET(
         category: true,
         franchise: true,
         images: { orderBy: { sortOrder: "asc" } },
+        media: { orderBy: { sortOrder: "asc" } },
         variants: true,
         reviews: {
           where: { isApproved: true },
@@ -32,7 +33,14 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ product })
+    return NextResponse.json({
+      product: {
+        ...product,
+        media: product.media.length > 0
+          ? product.media
+          : product.images.map((image) => ({ ...image, type: "IMAGE", posterUrl: null })),
+      },
+    })
   } catch (error) {
     console.error("Product detail error:", error)
     return NextResponse.json(

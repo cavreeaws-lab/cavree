@@ -192,7 +192,7 @@ async function main() {
       maxDiscount: 5000,
       usageLimit: 100,
       startDate: new Date(),
-      endDate: new Date("2024-12-31"),
+      endDate: new Date("2027-12-31"),
       isActive: true,
     },
   })
@@ -201,11 +201,11 @@ async function main() {
     data: {
       code: "FLAT500",
       description: "Flat ₹500 off on orders above ₹10000",
-      type: "FIXED",
+      type: "FLAT",
       value: 500,
       minOrder: 10000,
       startDate: new Date(),
-      endDate: new Date("2024-12-31"),
+      endDate: new Date("2027-12-31"),
       isActive: true,
     },
   })

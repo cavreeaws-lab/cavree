@@ -28,13 +28,19 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth()
     const body = await request.json()
+    if (!body.productId) {
+      return NextResponse.json({ error: "Product ID is required" }, { status: 400 })
+    }
     await prisma.recentlyViewed.upsert({
       where: { userId_productId: { userId: session.userId as string, productId: body.productId } },
       update: { createdAt: new Date() },
       create: { userId: session.userId as string, productId: body.productId },
     })
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error: any) {
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ success: false })
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

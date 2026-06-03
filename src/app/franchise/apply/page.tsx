@@ -8,9 +8,17 @@ import toast from "react-hot-toast"
 export default function FranchiseApplyPage() {
   const [form, setForm] = useState({
     name: "",
+    businessName: "",
+    ownerName: "",
     email: "",
+    password: "",
     phone: "",
+    gstNumber: "",
+    address: "",
     city: "",
+    state: "",
+    categoryInterests: "Women",
+    membershipTier: "STANDARD",
     investment: "",
     space: "",
   })
@@ -28,7 +36,11 @@ export default function FranchiseApplyPage() {
       const res = await fetch("/api/franchise/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          name: form.ownerName || form.businessName,
+          categoryInterests: form.categoryInterests.split(","),
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -83,16 +95,28 @@ export default function FranchiseApplyPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-medium mb-1.5 font-poppins">Full Name</label>
+                <label className="block text-sm font-medium mb-1.5 font-poppins">Business Name</label>
                 <input
-                  name="name"
-                  value={form.name}
+                  name="businessName"
+                  value={form.businessName}
                   onChange={handleChange}
                   required
                   className="w-full px-4 py-2.5 border border-cavree-border rounded-md text-sm outline-none focus:border-cavree-primary transition-colors"
-                  placeholder="Your name"
+                  placeholder="Business name"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5 font-poppins">Owner Name</label>
+                <input
+                  name="ownerName"
+                  value={form.ownerName}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2.5 border border-cavree-border rounded-md text-sm outline-none focus:border-cavree-primary transition-colors"
+                  placeholder="Owner name"
+                />
+              </div>
+              <input type="hidden" name="name" value={form.ownerName || form.businessName} readOnly />
               <div>
                 <label className="block text-sm font-medium mb-1.5 font-poppins">Email</label>
                 <input
@@ -108,6 +132,18 @@ export default function FranchiseApplyPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium mb-1.5 font-poppins">Password</label>
+                <input
+                  name="password"
+                  type="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2.5 border border-cavree-border rounded-md text-sm outline-none focus:border-cavree-primary transition-colors"
+                  placeholder="Create password"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium mb-1.5 font-poppins">Phone</label>
                 <input
@@ -130,6 +166,22 @@ export default function FranchiseApplyPage() {
                   placeholder="Your city"
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium mb-1.5 font-poppins">GST Number</label>
+                <input name="gstNumber" value={form.gstNumber} onChange={handleChange} className="w-full px-4 py-2.5 border border-cavree-border rounded-md text-sm outline-none focus:border-cavree-primary transition-colors" placeholder="GSTIN" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5 font-poppins">State</label>
+                <input name="state" value={form.state} onChange={handleChange} className="w-full px-4 py-2.5 border border-cavree-border rounded-md text-sm outline-none focus:border-cavree-primary transition-colors" placeholder="State" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5 font-poppins">Business Address</label>
+              <textarea name="address" value={form.address} onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))} rows={3} className="w-full px-4 py-2.5 border border-cavree-border rounded-md text-sm outline-none focus:border-cavree-primary transition-colors resize-none" placeholder="Registered business address" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -163,6 +215,26 @@ export default function FranchiseApplyPage() {
                   <option value="1000-2000">1000-2000</option>
                   <option value="2000-5000">2000-5000</option>
                   <option value="5000+">5000+</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium mb-1.5 font-poppins">Category Interest</label>
+                <select name="categoryInterests" value={form.categoryInterests} onChange={handleChange} className="w-full px-4 py-2.5 border border-cavree-border rounded-md text-sm outline-none focus:border-cavree-primary transition-colors bg-white">
+                  <option value="Women">Women</option>
+                  <option value="Men">Men</option>
+                  <option value="Women,Men">Women & Men</option>
+                  <option value="Women,Men,Kids">Women, Men & Kids</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5 font-poppins">Membership Tier</label>
+                <select name="membershipTier" value={form.membershipTier} onChange={handleChange} className="w-full px-4 py-2.5 border border-cavree-border rounded-md text-sm outline-none focus:border-cavree-primary transition-colors bg-white">
+                  <option value="STANDARD">Standard</option>
+                  <option value="PREMIUM">Premium</option>
+                  <option value="ELITE">Elite</option>
                 </select>
               </div>
             </div>

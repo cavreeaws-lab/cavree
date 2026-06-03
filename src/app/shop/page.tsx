@@ -2,53 +2,108 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useEffect, useState, Suspense } from "react"
+import { useEffect, useMemo, useRef, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { useCart } from "@/hooks/useCart"
-import { Filter, ChevronDown, Grid3X3, LayoutList, ShoppingBag, ChevronLeft, ChevronRight } from "lucide-react"
-import toast from "react-hot-toast"
+import { Filter, ChevronDown, Grid3X3, LayoutList } from "lucide-react"
+import { PriceDisplay } from "@/components/PriceDisplay"
+import ProductCardAddToCart from "@/components/ProductCardAddToCart"
 
 function ShopContent() {
   const searchParams = useSearchParams()
-  const { addItem } = useCart()
   const [products, setProducts] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [sort, setSort] = useState("newest")
+  const [sort, setSort] = useState("random")
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [priceRange, setPriceRange] = useState({ min: "", max: "" })
+  const [size, setSize] = useState("")
+  const [color, setColor] = useState("")
+  const [availability, setAvailability] = useState("")
+  const [minRating, setMinRating] = useState("")
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
+  const activeFilterKeyRef = useRef("")
+  const randomSeedRef = useRef(`${Date.now()}-${Math.random().toString(36).slice(2)}`)
   const limit = 12
 
   const categoryFilter = searchParams.get("category")
   const searchQuery = searchParams.get("search")
+  const filterKey = useMemo(() => JSON.stringify({
+    category: categoryFilter || "",
+    search: searchQuery || "",
+    sort,
+    min: priceRange.min,
+    max: priceRange.max,
+    size,
+    color,
+    availability,
+    minRating,
+  }), [categoryFilter, searchQuery, sort, priceRange.min, priceRange.max, size, color, availability, minRating])
 
   useEffect(() => {
-    setLoading(true)
+    activeFilterKeyRef.current = filterKey
+    setPage(1)
+    setProducts([])
+    setHasMore(true)
+  }, [filterKey])
+
+  useEffect(() => {
+    if (activeFilterKeyRef.current !== filterKey) return
+    if (page === 1) {
+      setLoading(true)
+    } else {
+      setLoadingMore(true)
+    }
     const params = new URLSearchParams()
     if (categoryFilter) params.set("category", categoryFilter)
     if (searchQuery) params.set("search", searchQuery)
     if (priceRange.min) params.set("minPrice", priceRange.min)
     if (priceRange.max) params.set("maxPrice", priceRange.max)
+    if (size) params.set("size", size)
+    if (color) params.set("color", color)
+    if (availability) params.set("availability", availability)
+    if (minRating) params.set("minRating", minRating)
     params.set("sort", sort)
+    if (sort === "random") params.set("seed", randomSeedRef.current)
     params.set("page", String(page))
     params.set("limit", String(limit))
 
-    fetch(`/api/products?${params}`)
+    const controller = new AbortController()
+    fetch(`/api/products?${params}`, { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => {
-        setProducts(data.products || [])
-        setTotal(data.total || 0)
+        if (activeFilterKeyRef.current !== filterKey) return
+        const nextProducts = data.products || []
+        setProducts((prev) => page === 1 ? nextProducts : [...prev, ...nextProducts])
+        const nextTotal = data.total || 0
+        setTotal(nextTotal)
+        setHasMore(page * limit < nextTotal && nextProducts.length > 0)
         setLoading(false)
+        setLoadingMore(false)
       })
-      .catch(() => setLoading(false))
-  }, [categoryFilter, searchQuery, sort, priceRange, page])
+      .catch((error) => {
+        if (error.name === "AbortError") return
+        setLoading(false)
+        setLoadingMore(false)
+      })
+    return () => controller.abort()
+  }, [categoryFilter, searchQuery, sort, priceRange.min, priceRange.max, size, color, availability, minRating, page, filterKey])
 
   useEffect(() => {
-    setPage(1)
-  }, [categoryFilter, searchQuery, priceRange.min, priceRange.max, sort])
+    const node = loadMoreRef.current
+    if (!node) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && hasMore && !loading && !loadingMore) {
+        setPage((current) => current + 1)
+      }
+    }, { rootMargin: "500px 0px" })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [hasMore, loading, loadingMore])
 
   useEffect(() => {
     fetch("/api/categories")
@@ -56,17 +111,6 @@ function ShopContent() {
       .then((data) => setCategories(data.categories || []))
       .catch(console.error)
   }, [])
-
-  const handleAddToCart = (product: any) => {
-    addItem({
-      id: product.id,
-      name: product.name,
-      slug: product.slug,
-      price: product.price,
-      image: product.images[0]?.url || "/images/placeholder.jpg",
-    })
-    toast.success("Added to cart!")
-  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -86,9 +130,6 @@ function ShopContent() {
         <h1 className="font-playfair text-3xl font-bold">
           {searchQuery ? `Search: "${searchQuery}"` : categoryFilter ? categoryFilter : "All Products"}
         </h1>
-        <p className="text-cavree-muted mt-1 font-poppins text-sm">
-          {products.length} products found
-        </p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -115,6 +156,43 @@ function ShopContent() {
                   </Link>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <h3 className="font-montserrat font-semibold text-sm mb-3">SIZE</h3>
+              <div className="grid grid-cols-3 gap-2">
+                {["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL"].map((item) => (
+                  <button key={item} type="button" onClick={() => setSize(size === item ? "" : item)} className={`rounded border px-3 py-2 text-sm ${size === item ? "border-cavree-primary bg-cavree-primary text-white" : "border-cavree-border"}`}>{item}</button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-montserrat font-semibold text-sm mb-3">COLOR</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {["Black", "White", "Red", "Yellow", "Green", "Pink", "Blue", "Purple"].map((item) => (
+                  <button key={item} type="button" onClick={() => setColor(color === item ? "" : item)} className={`rounded border px-3 py-2 text-left text-sm ${color === item ? "border-cavree-primary text-cavree-primary" : "border-cavree-border text-cavree-muted"}`}>{item}</button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-montserrat font-semibold text-sm mb-3">AVAILABILITY</h3>
+              <select value={availability} onChange={(e) => setAvailability(e.target.value)} className="w-full rounded border border-cavree-border px-3 py-2 text-sm">
+                <option value="">All stock</option>
+                <option value="in-stock">In stock</option>
+                <option value="low-stock">Low stock</option>
+                <option value="out-of-stock">Out of stock</option>
+              </select>
+            </div>
+
+            <div>
+              <h3 className="font-montserrat font-semibold text-sm mb-3">RATING</h3>
+              <select value={minRating} onChange={(e) => setMinRating(e.target.value)} className="w-full rounded border border-cavree-border px-3 py-2 text-sm">
+                <option value="">Any rating</option>
+                <option value="4">4 stars and up</option>
+                <option value="3">3 stars and up</option>
+              </select>
             </div>
 
             {/* Price Range */}
@@ -159,6 +237,7 @@ function ShopContent() {
                   onChange={(e) => setSort(e.target.value)}
                   className="appearance-none bg-white border border-cavree-border rounded px-4 py-2 pr-8 text-sm font-poppins cursor-pointer"
                 >
+                  <option value="random">Fresh Mix</option>
                   <option value="newest">Newest</option>
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>
@@ -218,40 +297,19 @@ function ShopContent() {
                         {product.name}
                       </h3>
                     </Link>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="font-montserrat font-semibold text-sm">
-                        {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(product.price)}
-                      </span>
-                      {product.comparePrice && (
-                        <span className="text-xs text-cavree-muted-light line-through">
-                          {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(product.comparePrice)}
-                        </span>
-                      )}
+                    <div className="mt-1">
+                      <PriceDisplay price={product.price} comparePrice={product.comparePrice} size="sm" />
                     </div>
-                    <button
-                      onClick={() => handleAddToCart(product)}
-                      className="mt-2 inline-flex items-center gap-2 px-4 py-2 border border-cavree-primary text-cavree-primary text-sm font-medium rounded-md hover:bg-cavree-primary hover:text-white transition-colors"
-                    >
-                      <ShoppingBag size={16} />
-                      Add to Cart
-                    </button>
+                    <ProductCardAddToCart product={product} className={viewMode === "list" ? "max-w-xs" : ""} />
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Pagination */}
-          {total > limit && (
-            <div className="flex items-center justify-between mt-8 pt-4 border-t border-cavree-border text-sm font-poppins">
-              <p className="text-cavree-muted">{total} products</p>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-cavree-light disabled:opacity-30"><ChevronLeft size={18} /></button>
-                <span className="text-sm">Page {page} of {Math.max(1, Math.ceil(total / limit))}</span>
-                <button onClick={() => setPage((p) => (p * limit < total ? p + 1 : p))} disabled={page * limit >= total} className="p-1 rounded hover:bg-cavree-light disabled:opacity-30"><ChevronRight size={18} /></button>
-              </div>
-            </div>
-          )}
+          <div ref={loadMoreRef} className="mt-8 min-h-8 text-center text-sm text-cavree-muted font-poppins">
+            {loadingMore ? "Loading more..." : products.length > 0 && !hasMore ? "You have reached the end." : ""}
+          </div>
         </div>
       </div>
     </div>

@@ -12,27 +12,44 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  const getErrorMessage = (error: unknown) => {
+    if (!error) return "Registration failed"
+    if (typeof error === "string") return error
+    if (typeof error === "object") {
+      const values = Object.values(error as Record<string, unknown>).flatMap((value) => Array.isArray(value) ? value : [value])
+      const first = values.find((value) => typeof value === "string")
+      if (first) return String(first)
+    }
+    return "Registration failed"
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const normalizedEmail = email.trim().toLowerCase()
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match")
+      return
+    }
     setLoading(true)
 
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone, password }),
+        body: JSON.stringify({ name: name.trim(), email: normalizedEmail, phone: phone.trim(), password }),
       })
 
       const data = await res.json()
 
       if (res.ok) {
         toast.success("Account created! Please sign in.")
-        router.push("/auth/login")
+        router.push("/auth/login?registered=1")
       } else {
-        toast.error(data.error || "Registration failed")
+        toast.error(getErrorMessage(data.error))
       }
     } catch (error) {
       toast.error("Something went wrong")
@@ -107,9 +124,10 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
+                  pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,}"
                   className="w-full pl-10 pr-10 py-2.5 border border-cavree-border rounded-md text-sm outline-none focus:border-cavree-primary transition-colors"
-                  placeholder="Min. 6 characters"
+                  placeholder="8+ chars with A-Z, a-z, number"
                 />
                 <button
                   type="button"
@@ -118,6 +136,23 @@ export default function RegisterPage() {
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
+              </div>
+              <p className="mt-1 text-xs text-cavree-muted font-poppins">Use at least 8 characters with uppercase, lowercase, and a number.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5 font-poppins">Confirm Password</label>
+              <div className="relative">
+                <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-cavree-muted" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="w-full pl-10 pr-4 py-2.5 border border-cavree-border rounded-md text-sm outline-none focus:border-cavree-primary transition-colors"
+                  placeholder="Re-enter password"
+                />
               </div>
             </div>
 

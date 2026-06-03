@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
 import { validate } from "@/lib/validators"
 import { z } from "zod"
+import { logActivity } from "@/lib/admin"
 
 export const dynamic = "force-dynamic"
 
@@ -13,6 +14,8 @@ const couponSchema = z.object({
   value: z.number().positive(),
   minOrder: z.number().optional(),
   maxDiscount: z.number().optional(),
+  usageLimit: z.number().int().positive().optional(),
+  perCustomerLimit: z.number().int().positive().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   isActive: z.boolean().optional(),
@@ -21,7 +24,10 @@ const couponSchema = z.object({
 export async function GET() {
   try {
     await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
-    const coupons = await prisma.coupon.findMany({ orderBy: { createdAt: "desc" } })
+    const coupons = await prisma.coupon.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { _count: { select: { usages: true } } },
+    })
     return NextResponse.json({ coupons })
   } catch (error: any) {
     if (error.message === "Unauthorized" || error.message === "Forbidden") {
@@ -33,7 +39,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
     const body = await request.json()
     const validation = validate(couponSchema, body)
     if (!validation.success) {
@@ -48,10 +54,19 @@ export async function POST(request: NextRequest) {
         value: data.value,
         minOrder: data.minOrder,
         maxDiscount: data.maxDiscount,
+        usageLimit: data.usageLimit,
+        perCustomerLimit: data.perCustomerLimit,
         startDate: data.startDate ? new Date(data.startDate) : new Date(),
         endDate: data.endDate ? new Date(data.endDate) : null,
         isActive: data.isActive ?? true,
       },
+    })
+    await logActivity({
+      userId: session.userId as string,
+      action: "CREATE",
+      entity: "Coupon",
+      entityId: coupon.id,
+      details: { code: coupon.code },
     })
     return NextResponse.json({ coupon }, { status: 201 })
   } catch (error: any) {

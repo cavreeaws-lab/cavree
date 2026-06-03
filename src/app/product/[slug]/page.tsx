@@ -24,6 +24,15 @@ import {
 } from "lucide-react"
 import toast from "react-hot-toast"
 import RecentlyViewed from "@/components/RecentlyViewed"
+import { PriceDisplay } from "@/components/PriceDisplay"
+import { getProductDiscount } from "@/lib/utils"
+
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL"]
+
+function sizeRank(size?: string) {
+  const index = SIZE_ORDER.indexOf(size || "")
+  return index === -1 ? SIZE_ORDER.length : index
+}
 
 export default function ProductDetailPage() {
   const params = useParams()
@@ -39,6 +48,7 @@ export default function ProductDetailPage() {
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewComment, setReviewComment] = useState("")
   const [submittingReview, setSubmittingReview] = useState(false)
+  const [touchStart, setTouchStart] = useState<number | null>(null)
 
   // New states
   const [relatedProducts, setRelatedProducts] = useState<any[]>([])
@@ -200,6 +210,7 @@ export default function ProductDetailPage() {
   }, [product?.id])
 
   const sizes = Array.from(new Set<string>(product?.variants?.map((v: any) => v.size).filter(Boolean)))
+    .sort((a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b))
   const colors = Array.from(new Set<string>(product?.variants?.map((v: any) => v.color).filter(Boolean)))
 
   // Stock status computation
@@ -221,6 +232,22 @@ export default function ProductDetailPage() {
 
   const availableQty = getAvailableQuantity()
   const isOutOfStock = availableQty <= 0
+  const mediaItems = product?.media?.length
+    ? product.media
+    : (product?.images || []).map((image: any) => ({ ...image, type: "IMAGE", posterUrl: null }))
+
+  const changeMedia = (direction: 1 | -1) => {
+    if (!mediaItems.length) return
+    setSelectedImage((current) => (current + direction + mediaItems.length) % mediaItems.length)
+  }
+
+  const handleTouchEnd = (x: number) => {
+    if (touchStart === null) return
+    const delta = touchStart - x
+    setTouchStart(null)
+    if (Math.abs(delta) < 40) return
+    changeMedia(delta > 0 ? 1 : -1)
+  }
 
   // Share handlers
   const productUrl = typeof window !== "undefined" ? window.location.href : ""
@@ -287,24 +314,61 @@ export default function ProductDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
         {/* Images */}
         <div>
-          <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-cavree-light">
-            <Image
-              src={product.images[selectedImage]?.url || "/images/placeholder.jpg"}
-              alt={product.name}
-              fill
-              className="object-cover"
-              priority
-            />
+          <div
+            className="relative aspect-[3/4] rounded-lg overflow-hidden bg-cavree-light"
+            onTouchStart={(event) => setTouchStart(event.touches[0]?.clientX ?? null)}
+            onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
+          >
+            {mediaItems[selectedImage]?.type === "VIDEO" ? (
+              <video
+                src={mediaItems[selectedImage]?.url}
+                poster={mediaItems[selectedImage]?.posterUrl || undefined}
+                controls
+                playsInline
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <Image
+                src={mediaItems[selectedImage]?.url || "/images/placeholder.jpg"}
+                alt={mediaItems[selectedImage]?.alt || product.name}
+                fill
+                className="object-cover"
+                priority
+              />
+            )}
+            {mediaItems.length > 1 && (
+              <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 rounded-full bg-black/35 px-2 py-1 md:hidden">
+                {mediaItems.map((_: any, index: number) => (
+                  <button
+                    key={index}
+                    aria-label={`Show media ${index + 1}`}
+                    onClick={() => setSelectedImage(index)}
+                    className={`h-1.5 rounded-full transition-all ${selectedImage === index ? "w-5 bg-white" : "w-1.5 bg-white/60"}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-          {product.images.length > 1 && (
+          {mediaItems.length > 1 && (
             <div className="flex gap-3 mt-4 overflow-x-auto pb-2">
-              {product.images.map((img: any, idx: number) => (
+              {mediaItems.map((item: any, idx: number) => (
                 <button
-                  key={img.id}
+                  key={item.id || `${item.url}-${idx}`}
                   onClick={() => setSelectedImage(idx)}
                   className={`relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors ${selectedImage === idx ? "border-cavree-primary" : "border-transparent"}`}
                 >
-                  <Image src={img.url} alt={img.alt || product.name} fill className="object-cover" />
+                  {item.type === "VIDEO" ? (
+                    <>
+                      {item.posterUrl ? (
+                        <Image src={item.posterUrl} alt={item.alt || product.name} fill className="object-cover" />
+                      ) : (
+                        <video src={item.url} className="h-full w-full object-cover" />
+                      )}
+                      <span className="absolute inset-0 grid place-items-center bg-black/25 text-xs font-semibold text-white">Video</span>
+                    </>
+                  ) : (
+                    <Image src={item.url} alt={item.alt || product.name} fill className="object-cover" />
+                  )}
                 </button>
               ))}
             </div>
@@ -315,6 +379,9 @@ export default function ProductDetailPage() {
         <div>
           <p className="text-sm text-cavree-muted font-poppins">{product.category?.name}</p>
           <h1 className="font-playfair text-2xl md:text-3xl font-bold mt-1">{product.name}</h1>
+          {product.modelNumber && (
+            <p className="mt-1 text-xs uppercase tracking-wide text-cavree-muted font-poppins">Model No. {product.modelNumber}</p>
+          )}
 
           <div className="flex items-center gap-3 mt-3">
             <div className="flex items-center gap-1">
@@ -331,15 +398,8 @@ export default function ProductDetailPage() {
             <span className="text-sm text-cavree-muted font-poppins">({product._count?.reviews || 0} reviews)</span>
           </div>
 
-          <div className="flex items-center gap-3 mt-4">
-            <span className="font-montserrat text-2xl font-bold">
-              {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(product.price)}
-            </span>
-            {product.comparePrice && (
-              <span className="text-lg text-cavree-muted-light line-through">
-                {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(product.comparePrice)}
-              </span>
-            )}
+          <div className="mt-4">
+            <PriceDisplay price={product.price} comparePrice={product.comparePrice} size="lg" showSavedAmount />
           </div>
 
           {/* Stock status */}
@@ -676,6 +736,9 @@ export default function ProductDetailPage() {
                     { size: "L", chest: "38-40", waist: "32-34", hip: "40-42" },
                     { size: "XL", chest: "40-42", waist: "34-36", hip: "42-44" },
                     { size: "XXL", chest: "42-44", waist: "36-38", hip: "44-46" },
+                    { size: "3XL", chest: "44-46", waist: "38-40", hip: "46-48" },
+                    { size: "4XL", chest: "46-48", waist: "40-42", hip: "48-50" },
+                    { size: "5XL", chest: "48-50", waist: "42-44", hip: "50-52" },
                   ].map((row) => (
                     <tr key={row.size} className="border-b border-cavree-border last:border-b-0">
                       <td className="px-4 py-3 font-medium">{row.size}</td>
@@ -698,6 +761,7 @@ export default function ProductDetailPage() {
 }
 
 function RelatedProductCard({ product }: { product: any }) {
+  const discount = getProductDiscount(product.price, product.comparePrice)
   return (
     <div className="group">
       <Link href={`/product/${product.slug}`} className="block relative overflow-hidden rounded-lg bg-cavree-light aspect-[3/4]">
@@ -712,9 +776,9 @@ function RelatedProductCard({ product }: { product: any }) {
             NEW
           </span>
         )}
-        {product.comparePrice && (
+        {discount && (
           <span className="absolute top-3 right-3 bg-cavree-secondary text-white text-xs font-medium px-2.5 py-1 rounded">
-            SALE
+            {discount.label}
           </span>
         )}
       </Link>
@@ -725,15 +789,8 @@ function RelatedProductCard({ product }: { product: any }) {
             {product.name}
           </h3>
         </Link>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="font-montserrat font-semibold text-sm">
-            {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(product.price)}
-          </span>
-          {product.comparePrice && (
-            <span className="text-xs text-cavree-muted-light line-through">
-              {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(product.comparePrice)}
-            </span>
-          )}
+        <div className="mt-1">
+          <PriceDisplay price={product.price} comparePrice={product.comparePrice} size="sm" />
         </div>
       </div>
     </div>

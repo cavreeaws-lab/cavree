@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
     const banner = await prisma.banner.create({
       data: {
         title: body.title,
+        subtitle: body.subtitle || null,
+        ctaLabel: body.ctaLabel || null,
         image: body.image,
         link: body.link || null,
         position: body.position || "HOME_TOP",

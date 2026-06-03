@@ -14,6 +14,14 @@ export function formatPrice(price: number): string {
   }).format(price)
 }
 
+export function getProductDiscount(price: number, comparePrice?: number | null) {
+  if (!comparePrice || comparePrice <= price || price < 0) return null
+  const amount = comparePrice - price
+  const percent = Math.round((amount / comparePrice) * 100)
+  if (percent <= 0) return null
+  return { amount, percent, label: `${percent}% OFF` }
+}
+
 export function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString("en-IN", {
     day: "numeric",

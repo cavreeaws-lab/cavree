@@ -8,6 +8,22 @@ import { useAuth } from "@/hooks/useAuth"
 import { ChevronRight, CreditCard, Truck, CheckCircle, Loader2, MapPin, Plus, X, CalendarDays } from "lucide-react"
 import toast from "react-hot-toast"
 
+const CHECKOUT_IDEMPOTENCY_KEY = "cavree-checkout-idempotency-key"
+
+function getCheckoutIdempotencyKey() {
+  const existingKey = window.sessionStorage.getItem(CHECKOUT_IDEMPOTENCY_KEY)
+  if (existingKey) return existingKey
+  const key = typeof window.crypto?.randomUUID === "function"
+    ? window.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  window.sessionStorage.setItem(CHECKOUT_IDEMPOTENCY_KEY, key)
+  return key
+}
+
+function clearCheckoutIdempotencyKey() {
+  window.sessionStorage.removeItem(CHECKOUT_IDEMPOTENCY_KEY)
+}
+
 export default function CheckoutPage() {
   const { items, getTotalPrice, clearCart } = useCart()
   const { user, loading: authLoading } = useAuth()
@@ -25,10 +41,8 @@ export default function CheckoutPage() {
   const [applyingCoupon, setApplyingCoupon] = useState(false)
 
   const subtotal = getTotalPrice()
-  const shipping = subtotal > 5000 ? 0 : 150
-  const tax = Math.round(subtotal * 0.05) // 5% GST placeholder
   const discount = appliedCoupon ? Math.min(appliedCoupon.discount, subtotal) : 0
-  const total = subtotal + shipping + tax - discount
+  const total = Math.max(0, subtotal - discount)
 
   const estimatedDelivery = () => {
     const d = new Date()
@@ -67,12 +81,14 @@ export default function CheckoutPage() {
   }
 
   const handlePlaceOrder = async () => {
+    if (placingOrder) return
     if (!selectedAddress) {
       toast.error("Please select a shipping address")
       return
     }
 
     setPlacingOrder(true)
+    const idempotencyKey = getCheckoutIdempotencyKey()
     try {
       const orderItems = items.map((item) => ({
         productId: item.product.id,
@@ -88,6 +104,7 @@ export default function CheckoutPage() {
           addressId: selectedAddress,
           paymentMethod,
           couponCode: appliedCoupon ? appliedCoupon.code : undefined,
+          idempotencyKey,
         }),
       })
 
@@ -132,6 +149,7 @@ export default function CheckoutPage() {
             const verifyData = await verifyRes.json()
             if (verifyData.success) {
               setPlacingOrder(false)
+              clearCheckoutIdempotencyKey()
               clearCart()
               router.push(`/checkout/success?order=${data.order.orderNumber}`)
             } else {
@@ -142,6 +160,9 @@ export default function CheckoutPage() {
           prefill: {
             name: user?.name || "",
             email: user?.email || "",
+          },
+          modal: {
+            ondismiss: () => setPlacingOrder(false),
           },
           theme: { color: "#0E7B87" },
         }
@@ -155,6 +176,7 @@ export default function CheckoutPage() {
       } else {
         // COD
         setPlacingOrder(false)
+        clearCheckoutIdempotencyKey()
         clearCart()
         router.push(`/checkout/success?order=${data.order.orderNumber}`)
       }
@@ -315,14 +337,6 @@ export default function CheckoutPage() {
                   <span className="text-cavree-muted">Subtotal</span>
                   <span>{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(subtotal)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-cavree-muted">Shipping</span>
-                  <span>{shipping === 0 ? "FREE" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(shipping)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-cavree-muted">Tax (5% GST)</span>
-                  <span>{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(tax)}</span>
-                </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span className="font-medium">Discount</span>
@@ -412,14 +426,6 @@ export default function CheckoutPage() {
               <div className="flex justify-between">
                 <span className="text-cavree-muted">Subtotal</span>
                 <span>{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(subtotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-cavree-muted">Shipping</span>
-                <span>{shipping === 0 ? "FREE" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(shipping)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-cavree-muted">Tax (5% GST)</span>
-                <span>{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(tax)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-green-600">

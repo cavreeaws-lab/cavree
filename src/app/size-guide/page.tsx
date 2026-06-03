@@ -8,6 +8,9 @@ const sizeData = {
     { size: "L", bust: "38-40", waist: "30-32", hips: "40-42", us: "12-14", uk: "16-18", eu: "44-46" },
     { size: "XL", bust: "41-43", waist: "33-35", hips: "43-45", us: "16-18", uk: "20-22", eu: "48-50" },
     { size: "XXL", bust: "44-46", waist: "36-38", hips: "46-48", us: "20-22", uk: "24-26", eu: "52-54" },
+    { size: "3XL", bust: "47-49", waist: "39-41", hips: "49-51", us: "22-24", uk: "26-28", eu: "54-56" },
+    { size: "4XL", bust: "50-52", waist: "42-44", hips: "52-54", us: "24-26", uk: "28-30", eu: "56-58" },
+    { size: "5XL", bust: "53-55", waist: "45-47", hips: "55-57", us: "26-28", uk: "30-32", eu: "58-60" },
   ],
   men: [
     { size: "XS", chest: "34-36", waist: "28-30", hips: "34-36", us: "34", uk: "34", eu: "44" },
@@ -16,6 +19,9 @@ const sizeData = {
     { size: "L", chest: "40-42", waist: "34-36", hips: "40-42", us: "40", uk: "40", eu: "50" },
     { size: "XL", chest: "42-44", waist: "36-38", hips: "42-44", us: "42", uk: "42", eu: "52" },
     { size: "XXL", chest: "44-46", waist: "38-40", hips: "44-46", us: "44", uk: "44", eu: "54" },
+    { size: "3XL", chest: "46-48", waist: "40-42", hips: "46-48", us: "46", uk: "46", eu: "56" },
+    { size: "4XL", chest: "48-50", waist: "42-44", hips: "48-50", us: "48", uk: "48", eu: "58" },
+    { size: "5XL", chest: "50-52", waist: "44-46", hips: "50-52", us: "50", uk: "50", eu: "60" },
   ],
   kids: [
     { size: "2-3Y", height: "38-40", chest: "22-23", waist: "20-21", hips: "22-23", weight: "12-14" },

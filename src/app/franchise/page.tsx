@@ -34,7 +34,7 @@ export default function FranchisePage() {
               Apply Now <ArrowRight size={18} />
             </Link>
             <Link
-              href="/auth/login"
+              href="/auth/login?redirect=/franchise/dashboard"
               className="inline-flex items-center gap-2 border border-white text-white hover:bg-white/10 px-8 py-3.5 rounded-md font-medium transition-colors"
             >
               <LogIn size={18} />

@@ -3,37 +3,39 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useState } from "react"
-import { useCart } from "@/hooks/useCart"
-import { ArrowRight, ShoppingBag, Star, Truck, Shield, Headphones } from "lucide-react"
-import toast from "react-hot-toast"
+import { ArrowRight, Star, Truck, Shield, Headphones } from "lucide-react"
 import RecentlyViewed from "@/components/RecentlyViewed"
+import { PriceDisplay } from "@/components/PriceDisplay"
+import ProductCardAddToCart from "@/components/ProductCardAddToCart"
+import { getProductDiscount } from "@/lib/utils"
 
-const heroSlides = [
+const fallbackHeroSlides = [
   {
     title: "Elevate Your Style",
     subtitle: "Discover the Latest Luxury Fashion Collections",
     cta: "Shop Now",
     image: "/images/hero-1.jpg",
+    link: "/shop",
   },
   {
     title: "Timeless Elegance",
     subtitle: "Premium Dresses for Every Occasion",
     cta: "Explore",
     image: "/images/hero-2.jpg",
+    link: "/shop?category=women",
   },
   {
     title: "New Arrivals",
     subtitle: "Be the First to Own the Season's Best",
     cta: "View Collection",
     image: "/images/hero-3.jpg",
+    link: "/shop",
   },
 ]
 
 const categories = [
   { name: "Women", image: "/images/cat-women.jpg" },
   { name: "Men", image: "/images/cat-men.jpg" },
-  { name: "Accessories", image: "/images/cat-accessories.jpg" },
-  { name: "Footwear", image: "/images/cat-footwear.jpg" },
 ]
 
 const features = [
@@ -44,18 +46,7 @@ const features = [
 ]
 
 function ProductCard({ product }: { product: any }) {
-  const { addItem } = useCart()
-
-  const handleAddToCart = () => {
-    addItem({
-      id: product.id,
-      name: product.name,
-      slug: product.slug,
-      price: product.price,
-      image: product.images[0]?.url || "/images/placeholder.jpg",
-    })
-    toast.success("Added to cart!")
-  }
+  const discount = getProductDiscount(product.price, product.comparePrice)
 
   return (
     <div className="group">
@@ -71,9 +62,9 @@ function ProductCard({ product }: { product: any }) {
             NEW
           </span>
         )}
-        {product.comparePrice && (
+        {discount && (
           <span className="absolute top-3 right-3 bg-cavree-secondary text-white text-xs font-medium px-2.5 py-1 rounded">
-            SALE
+            {discount.label}
           </span>
         )}
       </Link>
@@ -84,23 +75,10 @@ function ProductCard({ product }: { product: any }) {
             {product.name}
           </h3>
         </Link>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="font-montserrat font-semibold text-sm">
-            {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(product.price)}
-          </span>
-          {product.comparePrice && (
-            <span className="text-xs text-cavree-muted-light line-through">
-              {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(product.comparePrice)}
-            </span>
-          )}
+        <div className="mt-1">
+          <PriceDisplay price={product.price} comparePrice={product.comparePrice} size="sm" />
         </div>
-        <button
-          onClick={handleAddToCart}
-          className="mt-2 w-full py-2 border border-cavree-primary text-cavree-primary text-sm font-medium rounded-md hover:bg-cavree-primary hover:text-white transition-colors flex items-center justify-center gap-2"
-        >
-          <ShoppingBag size={16} />
-          Add to Cart
-        </button>
+        <ProductCardAddToCart product={product} />
       </div>
     </div>
   )
@@ -111,42 +89,57 @@ export default function HomePage() {
   const [products, setProducts] = useState<any[]>([])
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([])
   const [banners, setBanners] = useState<any[]>([])
-  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
+  const [heroBanners, setHeroBanners] = useState<any[]>([])
+  const [productSeed, setProductSeed] = useState("")
+  const heroSlides = (heroBanners.length > 0 ? heroBanners.map((banner) => ({
+    title: banner.title,
+    subtitle: banner.subtitle || "",
+    cta: banner.ctaLabel || "Shop Now",
+    image: banner.image,
+    link: banner.link || "/shop",
+  })) : fallbackHeroSlides)
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % heroSlides.length)
     }, 5000)
     return () => clearInterval(timer)
+  }, [heroSlides.length])
+
+  useEffect(() => {
+    if (currentSlide >= heroSlides.length) {
+      setCurrentSlide(0)
+    }
+  }, [currentSlide, heroSlides.length])
+
+  useEffect(() => {
+    setProductSeed(`${Date.now()}-${Math.random()}`)
   }, [])
 
   useEffect(() => {
-    fetch("/api/products?limit=8")
+    if (!productSeed) return
+
+    fetch(`/api/products?limit=8&sort=random&seed=${encodeURIComponent(productSeed)}`)
       .then((res) => res.json())
       .then((data) => setProducts(data.products || []))
       .catch(console.error)
 
-    fetch("/api/products?limit=4&isFeatured=true")
+    fetch(`/api/products?limit=4&isFeatured=true&sort=random&seed=${encodeURIComponent(`${productSeed}-featured`)}`)
       .then((res) => res.json())
       .then((data) => setFeaturedProducts(data.products || []))
       .catch(console.error)
 
-    fetch("/api/banners")
+    fetch("/api/banners?position=HOME_HERO")
+      .then((res) => res.json())
+      .then((data) => setHeroBanners(data.banners || []))
+      .catch(console.error)
+
+    fetch("/api/banners?position=HOME_MIDDLE")
       .then((res) => res.json())
       .then((data) => setBanners(data.banners || []))
       .catch(console.error)
 
-    fetch("/api/categories")
-      .then((res) => res.json())
-      .then((data) => {
-        const counts: Record<string, number> = {}
-        ;(data.categories || []).forEach((cat: any) => {
-          counts[cat.name] = cat._count?.products || 0
-        })
-        setCategoryCounts(counts)
-      })
-      .catch(console.error)
-  }, [])
+  }, [productSeed])
 
   return (
     <div>
@@ -174,7 +167,7 @@ export default function HomePage() {
                   {slide.subtitle}
                 </p>
                 <Link
-                  href="/shop"
+                  href={slide.link || "/shop"}
                   className="mt-8 inline-flex items-center gap-2 bg-cavree-primary hover:bg-cavree-primary-light text-white px-8 py-3.5 rounded-md font-medium transition-colors"
                 >
                   {slide.cta}
@@ -223,12 +216,12 @@ export default function HomePage() {
             <h2 className="font-playfair text-3xl md:text-4xl font-bold">Shop by Category</h2>
             <p className="text-cavree-muted mt-2 font-poppins">Explore our curated collections</p>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 md:gap-5">
             {categories.map((category, index) => (
               <Link
                 key={index}
                 href={`/shop?category=${category.name.toLowerCase()}`}
-                className="group relative aspect-[4/5] rounded-lg overflow-hidden"
+                className="group relative aspect-[4/5] overflow-hidden rounded-lg md:aspect-[5/3] lg:aspect-[16/9]"
               >
                 <Image
                   src={category.image}
@@ -239,7 +232,6 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
                   <h3 className="font-playfair text-xl md:text-2xl font-bold">{category.name}</h3>
-                  <p className="text-sm mt-1 font-poppins">{categoryCounts[category.name] || 0} Products</p>
                 </div>
               </Link>
             ))}
@@ -262,11 +254,15 @@ export default function HomePage() {
               View All <ArrowRight size={16} />
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {(featuredProducts.length > 0 ? featuredProducts : products.slice(0, 4)).map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {(featuredProducts.length > 0 || products.length > 0) ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {(featuredProducts.length > 0 ? featuredProducts : products.slice(0, 4)).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <CatalogComingSoon />
+          )}
           <div className="mt-8 text-center md:hidden">
             <Link
               href="/shop"
@@ -312,11 +308,15 @@ export default function HomePage() {
               View All <ArrowRight size={16} />
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {products.slice(4, 8).map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {products.length > 4 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {products.slice(4, 8).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <CatalogComingSoon />
+          )}
         </div>
       </section>
 
@@ -341,6 +341,15 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+    </div>
+  )
+}
+
+function CatalogComingSoon() {
+  return (
+    <div className="rounded-lg border border-cavree-border bg-white px-6 py-12 text-center">
+      <p className="font-playfair text-xl font-bold">Catalog coming soon</p>
+      <p className="mt-2 text-sm text-cavree-muted font-poppins">New products are being organized and will be published shortly.</p>
     </div>
   )
 }

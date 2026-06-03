@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useMemo, useState } from "react"
 import {
   LayoutDashboard,
   Store,
@@ -14,6 +15,9 @@ import {
   ChevronLeft,
   Shield,
   ClipboardList,
+  Bell,
+  Search,
+  UserCircle,
 } from "lucide-react"
 
 const navItems = [
@@ -34,11 +38,17 @@ export default function SuperAdminLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const [showNotifications, setShowNotifications] = useState(false)
+  const currentItem = navItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+  const breadcrumbs = useMemo(() => {
+    const parts = pathname.split("/").filter(Boolean).slice(1)
+    return ["Super Admin", ...parts.map((part) => part.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()))]
+  }, [pathname])
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-cavree-dark text-white flex-shrink-0 flex flex-col">
+      <aside className="hidden md:flex w-72 bg-cavree-dark text-white flex-shrink-0 flex-col">
         <div className="p-6 border-b border-cavree-dark-light">
           <Link href="/" className="font-playfair text-xl font-bold">
             CAVREE
@@ -79,19 +89,63 @@ export default function SuperAdminLayout({
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white border-b border-cavree-border h-16 flex items-center justify-between px-6">
-          <h1 className="font-playfair text-lg font-bold">
-            {navItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))?.label || "Super Admin"}
-          </h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-cavree-muted font-poppins">Super Administrator</span>
+        <header className="bg-white border-b border-cavree-border min-h-16 flex flex-col gap-3 px-4 py-3 lg:px-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="font-playfair text-lg font-bold">
+              {currentItem?.label || "Super Admin"}
+            </h1>
+            <div className="mt-1 flex items-center gap-1 text-xs text-cavree-muted font-poppins">
+              {breadcrumbs.map((crumb, index) => (
+                <span key={`${crumb}-${index}`} className="flex items-center gap-1">
+                  {index > 0 && <span>/</span>}
+                  <span className={index === breadcrumbs.length - 1 ? "text-cavree-foreground" : ""}>{crumb}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="relative hidden sm:block">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-cavree-muted" />
+              <input
+                placeholder="Search platform..."
+                className="w-64 rounded-md border border-cavree-border bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-cavree-primary"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    const value = event.currentTarget.value.trim()
+                    if (value) window.location.href = `/super-admin/users?search=${encodeURIComponent(value)}`
+                  }
+                }}
+              />
+            </div>
+            <div className="relative">
+              <button onClick={() => setShowNotifications((value) => !value)} className="relative rounded-md border border-cavree-border p-2 hover:bg-cavree-light">
+                <Bell size={18} />
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-cavree-secondary" />
+              </button>
+              {showNotifications && (
+                <div className="absolute right-0 top-11 z-20 w-72 rounded-lg border border-cavree-border bg-white p-3 shadow-lg">
+                  <p className="font-montserrat text-sm font-semibold">Platform Alerts</p>
+                  <div className="mt-3 space-y-2 text-sm font-poppins">
+                    <p className="rounded-md bg-cavree-light p-2">Review franchise applications and pending payouts.</p>
+                    <p className="rounded-md bg-cavree-light p-2">Use analytics to track marketplace growth.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 rounded-md border border-cavree-border px-3 py-2 text-sm font-poppins">
+              <UserCircle size={18} />
+              Super Administrator
+            </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-4 lg:p-6 overflow-auto">
           {children}
         </main>
+        <footer className="border-t border-cavree-border bg-white px-4 py-3 text-xs text-cavree-muted font-poppins lg:px-6">
+          Cavree Super Admin v1.0 · Marketplace operations
+        </footer>
       </div>
     </div>
   )

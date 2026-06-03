@@ -26,16 +26,26 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json({ error: validation.errors.flatten().fieldErrors }, { status: 400 })
     }
-    const { name, email, phone, city, investment, space } = validation.data
+    const { name, businessName, ownerName, email, phone, city, investment, space, state, address, gstNumber, categoryInterests, membershipTier } = validation.data
+    const notes = JSON.stringify({
+      businessName,
+      ownerName,
+      state,
+      address,
+      gstNumber,
+      categoryInterests: categoryInterests || [],
+      membershipTier,
+    })
 
     const application = await prisma.franchiseApplication.create({
       data: {
-        name,
+        name: ownerName || name,
         email: email.toLowerCase().trim(),
         phone,
         city,
         investment,
         space,
+        notes,
       },
     })
 
@@ -47,10 +57,14 @@ export async function POST(request: NextRequest) {
         subject: "New Franchise Application",
         html: `
           <h2>New Franchise Application</h2>
-          <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+          <p><strong>Name:</strong> ${escapeHtml(ownerName || name)}</p>
+          <p><strong>Business:</strong> ${escapeHtml(businessName || "")}</p>
           <p><strong>Email:</strong> ${escapeHtml(email)}</p>
           <p><strong>Phone:</strong> ${escapeHtml(phone)}</p>
           <p><strong>City:</strong> ${escapeHtml(city)}</p>
+          <p><strong>State:</strong> ${escapeHtml(state || "")}</p>
+          <p><strong>GST:</strong> ${escapeHtml(gstNumber || "")}</p>
+          <p><strong>Tier:</strong> ${escapeHtml(membershipTier || "")}</p>
           <p><strong>Investment:</strong> ${escapeHtml(investment)}</p>
           <p><strong>Space:</strong> ${escapeHtml(space)}</p>
         `,

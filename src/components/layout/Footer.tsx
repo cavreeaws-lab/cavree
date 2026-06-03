@@ -1,9 +1,19 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { Instagram, Facebook, Twitter } from "lucide-react"
 
 export function Footer() {
+  const pathname = usePathname()
+  const isAdminSurface =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/super-admin") ||
+    (pathname.startsWith("/franchise/") && pathname !== "/franchise/apply") ||
+    pathname.startsWith("/sales")
+
+  if (isAdminSurface) return null
+
   return (
     <footer className="bg-cavree-dark text-white">
       {/* Newsletter */}
@@ -57,7 +67,6 @@ export function Footer() {
               <li><Link href="/shop" className="hover:text-white transition-colors">All Products</Link></li>
               <li><Link href="/shop?category=women" className="hover:text-white transition-colors">Women</Link></li>
               <li><Link href="/shop?category=men" className="hover:text-white transition-colors">Men</Link></li>
-              <li><Link href="/shop?category=accessories" className="hover:text-white transition-colors">Accessories</Link></li>
               <li><Link href="/shop?isNew=true" className="hover:text-white transition-colors">New Arrivals</Link></li>
             </ul>
           </div>

@@ -68,4 +68,8 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  .input {
+    @apply w-full rounded-md border border-cavree-border px-3 py-2 text-sm outline-none transition-colors focus:border-cavree-primary disabled:bg-cavree-light;
+  }
 }

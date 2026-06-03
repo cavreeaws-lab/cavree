@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json({ error: validation.errors.flatten().fieldErrors }, { status: 400 })
     }
-    const { email, password, name, phone } = validation.data
+    const { password, name, phone } = validation.data
+    const email = validation.data.email.trim().toLowerCase()
 
     const existingUser = await prisma.user.findUnique({
       where: { email },

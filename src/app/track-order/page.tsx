@@ -184,9 +184,9 @@ export default function TrackOrderPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="border border-cavree-border rounded-lg p-5">
                 <p className="text-xs text-cavree-muted font-poppins uppercase tracking-wide mb-1">Shipping Address</p>
-                <p className="font-montserrat font-medium text-sm">{order.address.name}</p>
-                <p className="text-xs text-cavree-muted font-poppins mt-1 leading-relaxed">{order.address.address}, {order.address.city}, {order.address.state} — {order.address.pincode}</p>
-                <p className="text-xs text-cavree-muted font-poppins">{order.address.phone}</p>
+                <p className="font-montserrat font-medium text-sm">{order.address.city}, {order.address.state}</p>
+                <p className="text-xs text-cavree-muted font-poppins mt-1 leading-relaxed">Pincode {order.address.pincode}, {order.address.country}</p>
+                <p className="text-xs text-cavree-muted font-poppins mt-2">Full address is visible after signing in.</p>
               </div>
               <div className="border border-cavree-border rounded-lg p-5">
                 <p className="text-xs text-cavree-muted font-poppins uppercase tracking-wide mb-1">Payment</p>

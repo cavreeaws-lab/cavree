@@ -57,6 +57,7 @@ export default function SuperAdminUsersPage() {
             <option value="ALL">All Roles</option>
             <option value="CUSTOMER">Customer</option>
             <option value="FRANCHISEE">Franchisee</option>
+            <option value="SALES_EXECUTIVE">Sales Executive</option>
             <option value="ADMIN">Admin</option>
             <option value="SUPER_ADMIN">Super Admin</option>
           </select>

@@ -3,14 +3,20 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ChevronLeft, MapPin, CreditCard, Truck, Package } from "lucide-react"
+import { ChevronLeft, MapPin, CreditCard, Truck, Package, Printer, FileText, CheckCircle } from "lucide-react"
 import toast from "react-hot-toast"
+
+const statuses = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED", "REFUNDED"]
+const timeline = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED"]
 
 export default function AdminOrderDetailPage() {
   const params = useParams()
   const orderId = params.id as string
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState("")
+  const [tracking, setTracking] = useState({ carrier: "", trackingNumber: "", trackingUrl: "", estimatedDate: "" })
 
   useEffect(() => {
     fetch(`/api/admin/orders/${orderId}`)
@@ -20,6 +26,13 @@ export default function AdminOrderDetailPage() {
       })
       .then((data) => {
         setOrder(data.order)
+        setStatus(data.order.status)
+        setTracking({
+          carrier: data.order.shippingDetail?.carrier || "",
+          trackingNumber: data.order.shippingDetail?.trackingNumber || "",
+          trackingUrl: data.order.shippingDetail?.trackingUrl || "",
+          estimatedDate: data.order.shippingDetail?.estimatedDate?.slice(0, 10) || "",
+        })
         setLoading(false)
       })
       .catch(() => {
@@ -35,6 +48,43 @@ export default function AdminOrderDetailPage() {
         <div className="animate-pulse h-40 bg-gray-200 rounded" />
       </div>
     )
+  }
+
+  const updateOrder = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status,
+          carrier: tracking.carrier || undefined,
+          trackingNumber: tracking.trackingNumber || undefined,
+          trackingUrl: tracking.trackingUrl || undefined,
+          estimatedDate: tracking.estimatedDate || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed")
+      setOrder((prev: any) => ({ ...prev, ...data.order }))
+      toast.success("Order updated")
+    } catch {
+      toast.error("Failed to update order")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const fetchInvoice = async () => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}/invoice`)
+      const data = await res.json()
+      if (!res.ok) throw new Error()
+      toast.success(`Invoice ready: ${data.invoice.invoiceNumber}`)
+      window.print()
+    } catch {
+      toast.error("Failed to prepare invoice")
+    }
   }
 
   if (!order) {
@@ -61,6 +111,57 @@ export default function AdminOrderDetailPage() {
         <p className="text-sm text-cavree-muted font-poppins">
           Placed on {new Date(order.createdAt).toLocaleDateString("en-IN")}
         </p>
+      </div>
+
+      <div className="bg-white border border-cavree-border rounded-lg p-6 print:hidden">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="grid flex-1 gap-3 md:grid-cols-5">
+            <label className="block">
+              <span className="text-xs text-cavree-muted font-poppins">Status</span>
+              <select value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full rounded-md border border-cavree-border px-3 py-2 text-sm">
+                {statuses.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs text-cavree-muted font-poppins">Carrier</span>
+              <input value={tracking.carrier} onChange={(e) => setTracking((prev) => ({ ...prev, carrier: e.target.value }))} className="mt-1 w-full rounded-md border border-cavree-border px-3 py-2 text-sm" />
+            </label>
+            <label className="block">
+              <span className="text-xs text-cavree-muted font-poppins">Tracking number</span>
+              <input value={tracking.trackingNumber} onChange={(e) => setTracking((prev) => ({ ...prev, trackingNumber: e.target.value }))} className="mt-1 w-full rounded-md border border-cavree-border px-3 py-2 text-sm" />
+            </label>
+            <label className="block">
+              <span className="text-xs text-cavree-muted font-poppins">Tracking URL</span>
+              <input value={tracking.trackingUrl} onChange={(e) => setTracking((prev) => ({ ...prev, trackingUrl: e.target.value }))} className="mt-1 w-full rounded-md border border-cavree-border px-3 py-2 text-sm" />
+            </label>
+            <label className="block">
+              <span className="text-xs text-cavree-muted font-poppins">ETA</span>
+              <input type="date" value={tracking.estimatedDate} onChange={(e) => setTracking((prev) => ({ ...prev, estimatedDate: e.target.value }))} className="mt-1 w-full rounded-md border border-cavree-border px-3 py-2 text-sm" />
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={fetchInvoice} className="inline-flex items-center gap-2 rounded-md border border-cavree-border px-4 py-2 text-sm font-medium hover:bg-cavree-light"><Printer size={16} /> Invoice</button>
+            <button onClick={updateOrder} disabled={saving} className="rounded-md bg-cavree-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{saving ? "Saving..." : "Save"}</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white border border-cavree-border rounded-lg p-6">
+        <h3 className="font-montserrat font-semibold text-sm mb-4 flex items-center gap-2"><FileText size={16} className="text-cavree-primary" />Status Timeline</h3>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+          {timeline.map((item, index) => {
+            const currentIndex = timeline.indexOf(order.status)
+            const complete = currentIndex >= index || order.status === "DELIVERED"
+            return (
+              <div key={item} className={`rounded-lg border p-3 ${complete ? "border-cavree-primary bg-cavree-primary/5" : "border-cavree-border"}`}>
+                <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-full ${complete ? "bg-cavree-primary text-white" : "bg-cavree-light text-cavree-muted"}`}>
+                  <CheckCircle size={16} />
+                </div>
+                <p className="text-sm font-medium">{item.replace(/_/g, " ")}</p>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -92,6 +193,16 @@ export default function AdminOrderDetailPage() {
             <p><span className="text-cavree-muted">Status:</span> {order.payment?.status}</p>
             <p><span className="text-cavree-muted">Amount:</span> {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(order.payment?.amount || 0)}</p>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white border border-cavree-border rounded-lg p-6">
+        <h3 className="font-montserrat font-semibold text-sm mb-4 flex items-center gap-2"><Truck size={16} className="text-cavree-primary" />Shipping Tracking</h3>
+        <div className="grid gap-3 text-sm font-poppins md:grid-cols-4">
+          <p><span className="text-cavree-muted">Carrier:</span> {order.shippingDetail?.carrier || "-"}</p>
+          <p><span className="text-cavree-muted">Tracking:</span> {order.shippingDetail?.trackingNumber || "-"}</p>
+          <p><span className="text-cavree-muted">Status:</span> {order.shippingDetail?.status || "PENDING"}</p>
+          <p><span className="text-cavree-muted">ETA:</span> {order.shippingDetail?.estimatedDate ? new Date(order.shippingDetail.estimatedDate).toLocaleDateString("en-IN") : "-"}</p>
         </div>
       </div>
 

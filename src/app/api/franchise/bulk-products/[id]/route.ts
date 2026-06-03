@@ -1,0 +1,38 @@
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/auth"
+
+export const dynamic = "force-dynamic"
+
+export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const product = await prisma.bulkProduct.findFirst({
+      where: {
+        isActive: true,
+        OR: [
+          { id: params.id },
+          { slug: params.id },
+          { productId: params.id },
+        ],
+      },
+      include: {
+        units: {
+          where: { status: "AVAILABLE" },
+          orderBy: { unitCode: "asc" },
+        },
+      },
+    })
+
+    if (!product) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ product })
+  } catch (error: any) {
+    if (error.message === "Unauthorized" || error.message === "Forbidden") {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
+    return NextResponse.json({ error: "Server error" }, { status: 500 })
+  }
+}

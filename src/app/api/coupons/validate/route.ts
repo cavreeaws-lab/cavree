@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth()
+    const session = await requireAuth()
     const body = await request.json()
     const { code, total } = body
     if (!code) return NextResponse.json({ error: "Coupon code required" }, { status: 400 })
@@ -17,6 +17,14 @@ export async function POST(request: NextRequest) {
     if (coupon.startDate && new Date(coupon.startDate) > new Date()) return NextResponse.json({ error: "Coupon not started" }, { status: 400 })
     if (coupon.endDate && new Date(coupon.endDate) < new Date()) return NextResponse.json({ error: "Coupon expired" }, { status: 400 })
     if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) return NextResponse.json({ error: "Coupon usage limit reached" }, { status: 400 })
+    if (coupon.perCustomerLimit) {
+      const usageCount = await prisma.couponUsage.count({
+        where: { couponId: coupon.id, userId: session.userId as string },
+      })
+      if (usageCount >= coupon.perCustomerLimit) {
+        return NextResponse.json({ error: "Coupon already used for this account" }, { status: 400 })
+      }
+    }
     if (coupon.minOrder !== null && total < coupon.minOrder) return NextResponse.json({ error: `Minimum order value ${coupon.minOrder}` }, { status: 400 })
 
     const discount = coupon.type === "PERCENTAGE"

@@ -2,6 +2,10 @@
 
 > Generated from screenshots in `/cavree admin pannel/` folder vs current codebase.
 
+> 2026-05-20 implementation pass: the admin shell now has grouped collapsible navigation, breadcrumbs, search handoff, notifications/profile menus, and footer; dashboard reports now support range filters, real sales series, order mix, and activity feed; product list supports filters, table/grid modes, duplicate/delete/edit, and CSV export; product create/edit uses a tabbed operational form; orders support filters, bulk status updates, CSV export, tracking fields, timeline, and invoice print. Gaps that remain should be read as future backlog.
+
+> 2026-05-20 follow-up pass: coupons now include search/status filtering, usage limits, per-customer limits, usage counts, and activity logging; reviews now support scoped moderation and bulk approve/reject/delete; content management has banner/page/block previews; wallet has payout requests/history and commission summary cards; super-admin product/order lists now include search, filters, pagination, CSV export, and row-level status actions.
+
 ---
 
 ## 1. ADMIN PANEL (FRANCHISEE ROLE) - Target vs Current
@@ -53,9 +57,9 @@ Dashboard, Orders, Products, Customers, Categories, Inventory, Coupons, Content,
 - **Recent Orders:** Table with latest 5-10 orders (Order #, Customer, Amount, Status)
 - **Quick Actions:** Buttons for Add Product, View Orders, Add Coupon
 
-**Current Status:** Basic stats cards without icons or change indicators. No charts.
+**Current Status:** Dashboard now has range filters, summary cards, revenue/order charts, recent activity, top products, recent orders, and quick actions.
 
-**Missing:** Charts, top products, quick actions, proper stat card design.
+**Missing:** Deeper comparison/change percentages and export-ready dashboard widgets.
 
 ---
 
@@ -79,18 +83,13 @@ Dashboard, Orders, Products, Customers, Categories, Inventory, Coupons, Content,
   - Cancel/Refund buttons
 
 **Current Status:**
-- Basic table with Order ID, Customer, Date, Status (editable dropdown), Payment, Total
-- No search, no filters, no bulk actions, no export
-- Order detail exists but simplified - no timeline, no invoice, no map
+- Orders list now has search, status/date/payment filters, select-all, bulk status update, CSV export, and pagination.
+- Order detail now includes status/tracking update fields, payment/customer/shipping cards, timeline, notes, items, and invoice print.
 
 **Missing:**
-- Search & filters
-- Bulk actions
-- Export functionality
-- Order status timeline/visual tracker
-- Invoice generation/print
 - Map in shipping address
-- Better order detail layout
+- Refund/cancel controls beyond status update
+- Bulk delete if required operationally
 
 ---
 
@@ -114,23 +113,13 @@ Dashboard, Orders, Products, Customers, Categories, Inventory, Coupons, Content,
 - **Product Detail View:** Full product preview
 
 **Current Status:**
-- Basic product list table
-- Add/Edit product forms exist but simplified
-- Missing: rich text editor, brand, tags, barcode, backorders, low stock alert, shipping dimensions, SEO fields
-- Image upload basic, no drag-drop or crop
-- Variants exist but simpler
+- Product list now supports search, category/status/stock filters, grid/list view, CSV export, duplicate, edit, and delete.
+- Add/edit now uses a tabbed operational form with general, pricing, inventory, variants, images, SEO, and shipping fields including brand, tags, barcode, backorders, low-stock alert, weight, dimensions, and metadata.
 
 **Missing:**
-- Grid/list view toggle
 - Rich text editor for description
-- Brand, Tags fields
-- Barcode, Cost per item
-- Low stock alerts
-- Backorder settings
-- SEO tab (meta title, description)
-- Shipping weight/dimensions
 - Image drag-drop upload
-- Product duplicate action
+- Product preview/detail page
 
 ---
 
@@ -216,15 +205,14 @@ Dashboard, Orders, Products, Customers, Categories, Inventory, Coupons, Content,
   - Start/End Date with time
   - Status toggle
 
-**Current Status:** Basic coupon CRUD exists.
+**Current Status:** Coupon CRUD now includes search, active/inactive filtering, percentage/flat coupons, min order, max discount, total usage limit, per-customer limit, usage counts, code copy, edit/delete, and activity logging.
 
 **Missing:**
 - Free Shipping / Buy X Get Y types
 - Applicable products/categories selector
 - Customer eligibility rules
-- Per-customer usage limit
 - Auto-generate code button
-- Coupon usage statistics
+- Deeper coupon usage analytics beyond usage count
 
 ---
 
@@ -237,13 +225,12 @@ Dashboard, Orders, Products, Customers, Categories, Inventory, Coupons, Content,
 - Reply to review
 - Review detail modal
 
-**Current Status:** Basic review list.
+**Current Status:** Review moderation now supports pending/approved filtering, franchise scoping, approve/reject/delete actions, and bulk approve/reject/delete.
 
 **Missing:**
-- Pending/Approved/Rejected status workflow
 - Reply functionality
-- Bulk actions
 - Review detail modal
+- Dedicated rejected-state filter if rejected reviews need to be separated from hidden/unapproved reviews
 
 ---
 
@@ -258,13 +245,10 @@ Dashboard, Orders, Products, Customers, Categories, Inventory, Coupons, Content,
 - FAQ Management
 - Policy Pages (Terms, Privacy, Shipping, Return)
 
-**Current Status:** Basic content settings.
+**Current Status:** Admin content now supports content block, banner, and page CRUD with banner positions, sort order, status toggles, and preview modals.
 
 **Missing:**
-- Banner position management
-- Banner ordering
-- Banner preview
-- CMS page editor
+- Rich text CMS editor
 - FAQ management
 - Policy page templates
 
@@ -316,14 +300,13 @@ Dashboard, Orders, Products, Customers, Categories, Inventory, Coupons, Content,
   - Request payout modal (Amount, Method, Account details)
 - **Commission Settings:** (Super Admin controlled)
 
-**Current Status:** Basic wallet page exists.
+**Current Status:** Wallet now shows gross sales, completed payments, pending payments, estimated commission, available payout, payout request form, and payout history backed by `/api/admin/payouts`.
 
 **Missing:**
 - Detailed earnings breakdown per order
-- Payout request flow
-- Payout history
 - Commission status tracking (Pending/Paid)
-- Withdrawal methods (Bank, UPI)
+- Withdrawal method/account-detail workflow
+- Transaction IDs on payout history
 
 ---
 
@@ -449,11 +432,11 @@ Dashboard, Orders, Products, Customers, Categories, Inventory, Coupons, Content,
 - Filter by franchise
 - Cross-franchise analytics
 
-**Current Status:** Basic table with Order #, Customer, Franchise, Total, Status.
+**Current Status:** Super-admin orders now include search, status/payment filters, pagination, CSV export, franchise column, payment summary, and row-level status updates.
 
 **Missing:**
-- Same as Admin Orders (search, filters, bulk actions, export)
-- Franchise filter
+- Franchise filter UI
+- Bulk actions
 - Order detail view
 
 ---
@@ -466,11 +449,12 @@ Dashboard, Orders, Products, Customers, Categories, Inventory, Coupons, Content,
 - Cross-franchise product management
 - Feature/Unfeature products globally
 
-**Current Status:** Basic product list.
+**Current Status:** Super-admin products now include search, active/inactive filtering, pagination, CSV export, franchise/category/stock columns, low-stock highlighting, and activate/deactivate actions.
 
 **Missing:**
-- Same as Admin Products
-- Franchise filter/assignment
+- Franchise filter UI
+- Franchise reassignment
+- Global feature/unfeature controls
 - Global feature/unfeature
 
 ---
@@ -630,28 +614,14 @@ Dashboard, Orders, Products, Customers, Categories, Inventory, Coupons, Content,
 
 ## 4. API ENDPOINTS NEEDED
 
-### 4.1 Missing Admin APIs
+### 4.1 Remaining Admin APIs
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/api/admin/orders/export` | POST | Export orders to CSV |
-| `/api/admin/products/export` | POST | Export products to CSV |
-| `/api/admin/products/duplicate` | POST | Duplicate a product |
-| `/api/admin/inventory/adjust` | POST | Adjust stock with reason |
-| `/api/admin/inventory/history` | GET | Stock adjustment history |
-| `/api/admin/customers/[id]` | GET | Customer detail with orders |
-| `/api/admin/customers/[id]/notes` | POST | Add customer note |
 | `/api/admin/reviews/[id]/reply` | POST | Reply to review |
-| `/api/admin/reviews/bulk` | PUT | Bulk approve/reject |
-| `/api/admin/coupons/validate` | POST | Test coupon validity |
-| `/api/admin/content/banners` | GET/POST | Banner CRUD |
-| `/api/admin/content/pages` | GET/POST | CMS page CRUD |
-| `/api/admin/reports/sales` | GET | Sales report with date range |
-| `/api/admin/reports/products` | GET | Product performance |
-| `/api/admin/reports/customers` | GET | Customer report |
 | `/api/admin/settings/notifications` | GET/PUT | Notification preferences |
-| `/api/admin/wallet/payout` | POST | Request payout |
-| `/api/admin/wallet/payouts` | GET | Payout history |
+
+Implemented in current routes: order/product CSV export via `?export=csv`, `POST /api/admin/products/[id]/duplicate`, `POST /api/admin/inventory/adjust`, `GET /api/admin/inventory/history`, `GET /api/admin/customers/[id]`, `POST /api/admin/customers/[id]/notes`, `PATCH /api/admin/reviews/bulk`, content banner/page CRUD, admin reports via `/api/admin/reports`, and payout request/history via `/api/admin/payouts`.
 
 ### 4.2 Missing Super Admin APIs
 
@@ -1460,4 +1430,3 @@ Current implementation matches the general direction but needs:
 ---
 
 *Full Audit Completed — Admin + Customer-Facing Website*
-

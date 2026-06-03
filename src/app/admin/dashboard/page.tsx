@@ -14,6 +14,9 @@ import {
   Tooltip,
   BarChart,
   Bar,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts"
 
 const statusColors: Record<string, string> = {
@@ -28,9 +31,10 @@ const statusColors: Record<string, string> = {
 export default function AdminDashboardPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [days, setDays] = useState("30")
 
   useEffect(() => {
-    fetch("/api/admin/reports")
+    fetch(`/api/admin/reports?days=${days}`)
       .then((res) => res.json())
       .then((d) => {
         setData(d)
@@ -40,7 +44,14 @@ export default function AdminDashboardPage() {
         toast.error("Failed to load dashboard")
         setLoading(false)
       })
-  }, [])
+  }, [days])
+
+  const topProductsChart = useMemo(() => {
+    return (data?.topProducts || []).map((p: any) => ({
+      name: p.name,
+      revenue: p.revenue || 0,
+    }))
+  }, [data])
 
   if (loading || !data) {
     return (
@@ -63,31 +74,28 @@ export default function AdminDashboardPage() {
   ]
 
   const recentOrders = data.recentOrders || []
-
-  const revenueTrend = useMemo(() => {
-    const days: { day: string; revenue: number }[] = []
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date()
-      d.setDate(d.getDate() - i)
-      const dayName = d.toLocaleDateString("en-IN", { weekday: "short" })
-      const dateStr = d.toISOString().split("T")[0]
-      const revenue = recentOrders
-        .filter((o: any) => o.createdAt && o.createdAt.split("T")[0] === dateStr)
-        .reduce((sum: number, o: any) => sum + (o.total || 0), 0)
-      days.push({ day: dayName, revenue })
-    }
-    return days
-  }, [recentOrders])
-
-  const topProductsChart = useMemo(() => {
-    return (data.topProducts || []).map((p: any) => ({
-      name: p.name,
-      revenue: p.revenue || 0,
-    }))
-  }, [data])
+  const revenueTrend = (data.salesSeries || []).map((item: any) => ({
+    day: new Date(item.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
+    revenue: item.revenue,
+    orders: item.orders,
+  }))
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="font-playfair text-xl font-bold">Dashboard</h2>
+          <p className="text-sm text-cavree-muted font-poppins">Sales, catalog, customer, and activity overview.</p>
+        </div>
+        <div className="flex gap-2">
+          {["7", "30", "180", "365"].map((value) => (
+            <button key={value} onClick={() => setDays(value)} className={`rounded-md px-3 py-2 text-sm font-medium ${days === value ? "bg-cavree-primary text-white" : "border border-cavree-border bg-white text-cavree-muted hover:text-cavree-foreground"}`}>
+              {value === "180" ? "6M" : value === "365" ? "1Y" : `${value}D`}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
@@ -119,7 +127,7 @@ export default function AdminDashboardPage() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white border border-cavree-border rounded-lg p-6">
-          <h3 className="font-playfair text-base font-bold mb-4">Revenue Trend (Last 7 Days)</h3>
+          <h3 className="font-playfair text-base font-bold mb-4">Revenue Trend</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={revenueTrend}>
@@ -145,6 +153,37 @@ export default function AdminDashboardPage() {
                 <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white border border-cavree-border rounded-lg p-6">
+          <h3 className="font-playfair text-base font-bold mb-4">Order Mix</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={data.orderStatus || []} dataKey="count" nameKey="status" innerRadius={55} outerRadius={90} paddingAngle={3}>
+                  {(data.orderStatus || []).map((entry: any, index: number) => (
+                    <Cell key={entry.status} fill={["#0E7B87", "#35C6D6", "#FFD166", "#FF6B6B", "#1A1A1C"][index % 5]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        <div className="bg-white border border-cavree-border rounded-lg p-6">
+          <h3 className="font-playfair text-base font-bold mb-4">Recent Activity</h3>
+          <div className="space-y-3">
+            {(data.activity || []).length === 0 ? (
+              <p className="text-sm text-cavree-muted font-poppins">No activity logged yet.</p>
+            ) : (data.activity || []).map((activity: any) => (
+              <div key={activity.id} className="rounded-md bg-cavree-light p-3 text-sm font-poppins">
+                <p className="font-medium">{activity.action} {activity.entity}</p>
+                <p className="text-xs text-cavree-muted">{new Date(activity.createdAt).toLocaleString("en-IN")}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

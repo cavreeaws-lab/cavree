@@ -19,17 +19,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 })
     }
 
-    // Check if user has purchased this product
+    // Customers can review only after the order is fully completed.
     const hasOrdered = await prisma.orderItem.findFirst({
       where: {
         productId,
-        order: { userId: session.userId as string, status: { not: "CANCELLED" } },
+        order: {
+          userId: session.userId as string,
+          status: "DELIVERED",
+          payment: { status: "COMPLETED" },
+        },
       },
     })
 
     if (!hasOrdered) {
       return NextResponse.json(
-        { error: "You can only review products you have purchased" },
+        { error: "You can review this product after your completed order is delivered" },
         { status: 403 }
       )
     }

@@ -38,7 +38,7 @@ export async function PATCH(
             where: { id: item.variantId },
             data: { quantity: { increment: item.quantity } },
           })
-        } else {
+        } else if (item.productId) {
           await tx.product.update({
             where: { id: item.productId },
             data: { quantity: { increment: item.quantity } },

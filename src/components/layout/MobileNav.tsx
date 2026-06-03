@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home, ShoppingBag, Heart, User, ShoppingCart } from "lucide-react"
+import { useEffect, useState } from "react"
 import { useCart } from "@/hooks/useCart"
 
 const navItems = [
@@ -13,14 +14,21 @@ const navItems = [
   { href: "/account/profile", label: "Account", icon: User },
 ]
 
-const HIDDEN_PATHS = ["/admin", "/super-admin", "/auth"]
+const HIDDEN_PATHS = ["/admin", "/super-admin", "/auth", "/sales"]
 
 export function MobileNav() {
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
   const { getTotalItems } = useCart()
-  const cartCount = getTotalItems()
+  const cartCount = mounted ? getTotalItems() : 0
 
-  const isHidden = HIDDEN_PATHS.some((p) => pathname.startsWith(p))
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const isHidden =
+    HIDDEN_PATHS.some((p) => pathname.startsWith(p)) ||
+    (pathname.startsWith("/franchise/") && pathname !== "/franchise/apply")
   if (isHidden) return null
 
   const isActive = (href: string) => {

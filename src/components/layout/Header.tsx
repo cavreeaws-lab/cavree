@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { useCart } from "@/hooks/useCart"
 import { useAuth } from "@/hooks/useAuth"
 import {
@@ -16,14 +16,27 @@ import {
 } from "lucide-react"
 
 export function Header() {
+  const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
   const { getTotalItems } = useCart()
   const { user, logout } = useAuth()
 
-  const cartCount = getTotalItems()
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const cartCount = mounted ? getTotalItems() : 0
+  const isPortalSurface =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/super-admin") ||
+    (pathname.startsWith("/franchise/") && pathname !== "/franchise/apply") ||
+    pathname.startsWith("/sales")
+
+  if (isPortalSurface) return null
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,10 +49,6 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-cavree-border">
-      <div className="bg-cavree-primary text-white text-center py-1.5 text-xs font-medium tracking-wide">
-        FREE SHIPPING ON ORDERS ABOVE ₹5000 | COD AVAILABLE
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Mobile menu button */}
@@ -112,8 +121,13 @@ export function Header() {
                     My Orders
                   </Link>
                   {user.role === "FRANCHISEE" && (
-                    <Link href="/admin/dashboard" className="block px-4 py-2 text-sm hover:bg-cavree-light transition-colors">
-                      Admin Panel
+                    <Link href="/franchise/dashboard" className="block px-4 py-2 text-sm hover:bg-cavree-light transition-colors">
+                      Franchise Portal
+                    </Link>
+                  )}
+                  {user.role === "SALES_EXECUTIVE" && (
+                    <Link href="/sales/dashboard" className="block px-4 py-2 text-sm hover:bg-cavree-light transition-colors">
+                      Sales Portal
                     </Link>
                   )}
                   {user.role === "SUPER_ADMIN" && (

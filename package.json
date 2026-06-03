@@ -12,6 +12,14 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "import:products": "tsx scripts/import-staged-products.ts",
+    "import:products:assets": "tsx scripts/import-staged-products.ts --prepare-assets-only",
+    "import:products:existing-assets": "tsx scripts/import-staged-products.ts --use-existing-assets",
+    "import:organized-products": "tsx scripts/import-organized-products.ts",
+    "sizes:extend": "tsx scripts/add-extended-sizes.ts",
+    "seed:product-reviews": "tsx scripts/seed-product-reviews.ts",
+    "reset:products": "tsx scripts/reset-products.ts",
+    "seed:homepage-banners": "tsx scripts/seed-homepage-banners.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -54,6 +62,7 @@
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.4.1",
     "recharts": "^2.12.7",
+    "sharp": "^0.33.5",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^10.0.0",

@@ -30,6 +30,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
+    const existingGatewayData = order.payment?.gatewayData as any
+    if (
+      order.payment?.status === "PENDING" &&
+      order.payment?.transactionId &&
+      existingGatewayData?.currency === "INR" &&
+      Number(existingGatewayData?.amount) === Math.round(order.total * 100)
+    ) {
+      return NextResponse.json({
+        orderId: order.payment.transactionId,
+        amount: existingGatewayData.amount,
+        currency: existingGatewayData.currency,
+        keyId: process.env.RAZORPAY_KEY_ID,
+        reused: true,
+      })
+    }
+
     const instance = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID!,
       key_secret: process.env.RAZORPAY_KEY_SECRET!,

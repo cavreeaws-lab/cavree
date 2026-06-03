@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState, Suspense } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Mail, Lock } from "lucide-react"
 import toast from "react-hot-toast"
@@ -15,6 +15,40 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
 
   const redirectParam = searchParams.get("redirect")
+  const registered = searchParams.get("registered")
+
+  useEffect(() => {
+    if (registered === "1") {
+      toast.success("Account created. Please sign in.")
+    }
+  }, [registered])
+
+  const normalizeRedirectTarget = (target: string) => {
+    try {
+      const isAbsolute = /^https?:\/\//.test(target)
+      const url = isAbsolute ? new URL(target) : new URL(target, window.location.origin)
+
+      if (url.pathname === "/admin" || url.pathname === "/admin/") {
+        url.pathname = "/admin/dashboard"
+      }
+
+      if (url.pathname === "/super-admin" || url.pathname === "/super-admin/") {
+        url.pathname = "/super-admin/dashboard"
+      }
+
+      if (url.pathname === "/franchise/" || url.pathname === "/franchise/dashboard/") {
+        url.pathname = "/franchise/dashboard"
+      }
+
+      if (url.pathname === "/sales" || url.pathname === "/sales/") {
+        url.pathname = "/sales/dashboard"
+      }
+
+      return isAbsolute ? url.toString() : `${url.pathname}${url.search}${url.hash}`
+    } catch {
+      return target
+    }
+  }
 
   const navigateAfterLogin = (target: string) => {
     if (/^https?:\/\//.test(target)) {
@@ -24,17 +58,37 @@ function LoginForm() {
     router.push(target)
   }
 
+  const canRoleAccessTarget = (role: string | undefined, target: string) => {
+    try {
+      const url = /^https?:\/\//.test(target) ? new URL(target) : new URL(target, window.location.origin)
+      if (url.hostname === "admin.cavree.com") return role === "ADMIN" || role === "SUPER_ADMIN"
+      if (url.hostname === "franchise.cavree.com") return role === "FRANCHISEE" || role === "ADMIN" || role === "SUPER_ADMIN"
+      if (url.hostname === "sales.cavree.com") return role === "SALES_EXECUTIVE" || role === "ADMIN" || role === "SUPER_ADMIN"
+      if (url.hostname === "super-admin.cavree.com") return role === "SUPER_ADMIN"
+      if (url.pathname.startsWith("/admin")) return role === "FRANCHISEE" || role === "ADMIN" || role === "SUPER_ADMIN"
+      if (url.pathname.startsWith("/franchise/") && url.pathname !== "/franchise/apply") return role === "FRANCHISEE" || role === "ADMIN" || role === "SUPER_ADMIN"
+      if (url.pathname.startsWith("/sales")) return role === "SALES_EXECUTIVE" || role === "ADMIN" || role === "SUPER_ADMIN"
+      if (url.pathname.startsWith("/super-admin")) return role === "SUPER_ADMIN"
+      return true
+    } catch {
+      return true
+    }
+  }
+
   const getRoleRedirect = (role: string | undefined) => {
     const hostname = window.location.hostname
     const isProductionDomain = hostname === "cavree.com" || hostname.endsWith(".cavree.com")
     if (!isProductionDomain) {
       if (role === "SUPER_ADMIN") return "/super-admin/dashboard"
-      if (role === "ADMIN" || role === "FRANCHISEE") return "/admin/dashboard"
+      if (role === "ADMIN") return "/admin/dashboard"
+      if (role === "FRANCHISEE") return "/franchise/dashboard"
+      if (role === "SALES_EXECUTIVE") return "/sales/dashboard"
       return "/account/orders"
     }
     if (role === "SUPER_ADMIN") return "https://super-admin.cavree.com/super-admin/dashboard"
     if (role === "ADMIN") return "https://admin.cavree.com/admin/dashboard"
-    if (role === "FRANCHISEE") return "https://franchise.cavree.com/admin/dashboard"
+    if (role === "FRANCHISEE") return "https://franchise.cavree.com/franchise/dashboard"
+    if (role === "SALES_EXECUTIVE") return "https://sales.cavree.com/sales/dashboard"
     return "/account/orders"
   }
 
@@ -53,12 +107,13 @@ function LoginForm() {
 
       if (res.ok) {
         toast.success("Login successful!")
-
-        if (redirectParam) {
-          navigateAfterLogin(redirectParam)
-        } else {
-          navigateAfterLogin(getRoleRedirect(data.user?.role))
+        const target = normalizeRedirectTarget(redirectParam || getRoleRedirect(data.user?.role))
+        if (!canRoleAccessTarget(data.user?.role, target)) {
+          toast.error("This account does not have access to that portal.")
+          return
         }
+
+        navigateAfterLogin(target)
         router.refresh()
       } else {
         toast.error(data.error || "Login failed")

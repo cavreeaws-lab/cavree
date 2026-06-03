@@ -1,18 +1,22 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
-interface CartProduct {
+export interface CartVariant {
+  id: string
+  size?: string
+  color?: string
+  price?: number
+  quantity?: number
+}
+
+export interface CartProduct {
   id: string
   name: string
   slug: string
   price: number
   image: string
-  variant?: {
-    id: string
-    size?: string
-    color?: string
-    price?: number
-  }
+  variants?: CartVariant[]
+  variant?: CartVariant
 }
 
 interface CartItem {
@@ -26,6 +30,7 @@ interface CartState {
   addItem: (product: CartProduct, quantity?: number, variant?: CartProduct["variant"]) => void
   removeItem: (itemId: string) => void
   updateQuantity: (itemId: string, quantity: number) => void
+  updateVariant: (itemId: string, variant: CartVariant) => void
   clearCart: () => void
   getTotalItems: () => number
   getTotalPrice: () => number
@@ -75,6 +80,39 @@ export const useCart = create<CartState>()(
         set({
           items: get().items.map((item) =>
             item.id === itemId ? { ...item, quantity } : item
+          ),
+        })
+      },
+      updateVariant: (itemId, variant) => {
+        const items = get().items
+        const currentItem = items.find((item) => item.id === itemId)
+        if (!currentItem) return
+
+        const duplicateItem = items.find(
+          (item) =>
+            item.id !== itemId &&
+            item.product.id === currentItem.product.id &&
+            item.product.variant?.id === variant.id
+        )
+
+        if (duplicateItem) {
+          set({
+            items: items
+              .filter((item) => item.id !== itemId)
+              .map((item) =>
+                item.id === duplicateItem.id
+                  ? { ...item, quantity: item.quantity + currentItem.quantity }
+                  : item
+              ),
+          })
+          return
+        }
+
+        set({
+          items: items.map((item) =>
+            item.id === itemId
+              ? { ...item, product: { ...item.product, variant } }
+              : item
           ),
         })
       },

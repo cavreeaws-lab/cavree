@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
+import { getAdminScope, logActivity } from "@/lib/admin"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(["ADMIN", "SUPER_ADMIN"])
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN"])
+    const scope = await getAdminScope(session)
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status")
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "20")
 
-    const where: any = {}
+    const where: any = scope.franchiseId ? { franchiseId: scope.franchiseId } : {}
     if (status) where.status = status
 
     const [payouts, total] = await Promise.all([
@@ -52,14 +54,27 @@ export async function POST(request: NextRequest) {
     if (!franchise) return NextResponse.json({ error: "No franchise found" }, { status: 400 })
 
     const payout = await prisma.$transaction(async (tx: any) => {
-      const wallet = await tx.wallet.findUnique({ where: { userId: session.userId as string } })
-      if (!wallet || wallet.balance < amount) {
+      const [ordersAgg, payoutsAgg] = await Promise.all([
+        tx.order.aggregate({
+          where: {
+            franchiseId: franchise.id,
+            status: { notIn: ["CANCELLED", "RETURNED", "REFUNDED"] },
+            payment: { is: { status: "COMPLETED" } },
+          },
+          _sum: { total: true },
+        }),
+        tx.payout.aggregate({
+          where: { franchiseId: franchise.id, status: { in: ["PENDING", "APPROVED", "PAID"] } },
+          _sum: { amount: true },
+        }),
+      ])
+      const franchiseRecord = await tx.franchise.findUnique({ where: { id: franchise.id }, select: { commission: true } })
+      const grossCompleted = ordersAgg._sum.total || 0
+      const commissionRate = (franchiseRecord?.commission || 10) / 100
+      const available = Math.max(0, grossCompleted - grossCompleted * commissionRate - (payoutsAgg._sum.amount || 0))
+      if (available < amount) {
         throw new Error("Insufficient balance")
       }
-      await tx.wallet.update({
-        where: { userId: session.userId as string },
-        data: { balance: { decrement: amount } },
-      })
       return await tx.payout.create({
         data: {
           amount,
@@ -70,6 +85,13 @@ export async function POST(request: NextRequest) {
           userId: session.userId as string,
         },
       })
+    })
+    await logActivity({
+      userId: session.userId as string,
+      action: "REQUEST",
+      entity: "Payout",
+      entityId: payout.id,
+      details: { amount },
     })
 
     return NextResponse.json({ payout }, { status: 201 })
