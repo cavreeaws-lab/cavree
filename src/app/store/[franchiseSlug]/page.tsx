@@ -4,9 +4,62 @@ import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useMemo, useState } from "react"
 import { useParams } from "next/navigation"
-import { Search, Store, MapPin, Phone, Mail, RefreshCw, Grid3X3, LayoutList, ChevronDown } from "lucide-react"
-import { PriceDisplay } from "@/components/PriceDisplay"
-import ProductCardAddToCart from "@/components/ProductCardAddToCart"
+import { Search, Store, MapPin, Phone, Mail, RefreshCw, Grid3X3, LayoutList, ChevronDown, ShoppingBag } from "lucide-react"
+import toast from "react-hot-toast"
+import { useCart } from "@/hooks/useCart"
+
+function formatPrice(price: number) {
+  return `₹${price.toLocaleString("en-IN")}`
+}
+
+function getProductDiscount(price: number, comparePrice?: number | null) {
+  if (!comparePrice || comparePrice <= price) return null
+  const amount = comparePrice - price
+  const percent = Math.round((amount / comparePrice) * 100)
+  return { amount, percent, label: `${percent}% OFF` }
+}
+
+function PriceDisplay({ price, comparePrice, size = "md" }: { price: number; comparePrice?: number | null; size?: "sm" | "md" | "lg" }) {
+  const discount = getProductDiscount(price, comparePrice)
+  const priceClass = size === "lg" ? "text-2xl font-bold" : size === "sm" ? "text-sm font-semibold" : "text-base font-semibold"
+  const compareClass = size === "lg" ? "text-lg" : "text-xs"
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className={`font-montserrat ${priceClass}`}>{formatPrice(price)}</span>
+      {discount && (
+        <>
+          <span className={`${compareClass} text-cavree-muted-light line-through`}>{formatPrice(comparePrice!)}</span>
+          <span className="rounded bg-cavree-secondary px-2 py-0.5 text-[11px] font-semibold text-white">{discount.label}</span>
+        </>
+      )}
+    </div>
+  )
+}
+
+function AddToCartButton({ product }: { product: any }) {
+  const { addItem } = useCart()
+  const handleAdd = () => {
+    addItem(
+      {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        image: product.images?.[0]?.url || "/images/placeholder.jpg",
+      },
+      1
+    )
+    toast.success("Added to cart!")
+  }
+  return (
+    <button
+      onClick={handleAdd}
+      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-cavree-primary text-cavree-primary text-sm font-medium rounded-md hover:bg-cavree-primary hover:text-white transition-colors"
+    >
+      <ShoppingBag size={16} /> Add to Cart
+    </button>
+  )
+}
 
 export default function FranchisePublicStorePage() {
   const params = useParams()
@@ -325,7 +378,7 @@ export default function FranchisePublicStorePage() {
                     </span>
                   </div>
                   <div className="mt-3">
-                    <ProductCardAddToCart product={product} />
+                    <AddToCartButton product={product} />
                   </div>
                 </div>
               </div>
