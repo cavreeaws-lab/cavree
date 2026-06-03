@@ -42,10 +42,10 @@ export default function FranchiseDashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-4">
         {[
-          ["Bulk Orders", stats.orders || 0, ClipboardList],
-          ["Total Units", stats.totalUnits || 0, PackageSearch],
+          ["Orders", stats.orders || 0, ClipboardList],
+          ["Total Items", stats.totalItems || 0, PackageSearch],
           ["Cart Items", stats.cartItems || 0, ShoppingCart],
-          ["Catalog Items", stats.activeBulkProducts || 0, Store],
+          ["Catalog Items", stats.activeProducts || 0, Store],
         ].map(([label, value, Icon]: any) => (
           <div key={label} className="rounded-lg border border-cavree-border bg-white p-5">
             <div className="flex items-center justify-between">
@@ -60,14 +60,14 @@ export default function FranchiseDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="rounded-lg border border-cavree-border bg-white">
           <div className="border-b border-cavree-border p-4">
-            <h3 className="font-playfair text-lg font-bold">Recent Bulk Orders</h3>
+            <h3 className="font-playfair text-lg font-bold">Recent Orders</h3>
           </div>
           <div className="divide-y divide-cavree-border">
             {orders.map((order: any) => (
-              <Link key={order.id} href={`/franchise/orders/${order.id}`} className="flex items-center justify-between p-4 hover:bg-cavree-light">
+              <Link key={order.id} href={`/account/orders/${order.id}`} className="flex items-center justify-between p-4 hover:bg-cavree-light">
                 <div>
                   <p className="font-medium">{order.orderNumber}</p>
-                  <p className="text-sm text-cavree-muted">{order.totalUnits} units · {order.totalPieces} pieces</p>
+                  <p className="text-sm text-cavree-muted">{order.totalItems || 0} items</p>
                 </div>
                 <div className="text-right">
                   <p className="font-semibold">₹{order.total.toLocaleString("en-IN")}</p>
@@ -75,7 +75,7 @@ export default function FranchiseDashboardPage() {
                 </div>
               </Link>
             ))}
-            {orders.length === 0 && <p className="p-8 text-center text-sm text-cavree-muted">No bulk orders yet.</p>}
+            {orders.length === 0 && <p className="p-8 text-center text-sm text-cavree-muted">No orders yet.</p>}
           </div>
         </div>
 
