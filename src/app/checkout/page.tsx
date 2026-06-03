@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/hooks/useCart"
 import { useAuth } from "@/hooks/useAuth"
-import { ChevronRight, CreditCard, Truck, CheckCircle, Loader2, MapPin, Plus, X, CalendarDays } from "lucide-react"
+import { ChevronRight, CreditCard, Truck, CheckCircle, Loader2, MapPin, Plus, X, CalendarDays, Store } from "lucide-react"
 import toast from "react-hot-toast"
 
 const CHECKOUT_IDEMPOTENCY_KEY = "cavree-checkout-idempotency-key"
@@ -25,7 +25,7 @@ function clearCheckoutIdempotencyKey() {
 }
 
 export default function CheckoutPage() {
-  const { items, getTotalPrice, clearCart } = useCart()
+  const { items, getTotalPrice, clearCart, getFranchiseId } = useCart()
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -105,6 +105,7 @@ export default function CheckoutPage() {
           paymentMethod,
           couponCode: appliedCoupon ? appliedCoupon.code : undefined,
           idempotencyKey,
+          franchiseId: getFranchiseId(),
         }),
       })
 
@@ -195,7 +196,13 @@ export default function CheckoutPage() {
         <span>Checkout</span>
       </div>
 
-      <h1 className="font-playfair text-3xl font-bold mb-8">Checkout</h1>
+      <h1 className="font-playfair text-3xl font-bold mb-4">Checkout</h1>
+
+      {getFranchiseId() && items[0]?.franchiseName && (
+        <div className="mb-6 rounded-lg border border-cavree-primary/20 bg-cavree-primary/5 px-4 py-3 flex items-center gap-2 text-sm text-cavree-primary">
+          <Store size={16} /> Ordering from <span className="font-semibold">{items[0].franchiseName}</span> store. Your order will be fulfilled by this franchise.
+        </div>
+      )}
 
       {/* Progress */}
       <div className="flex items-center gap-4 mb-8">
@@ -322,6 +329,11 @@ export default function CheckoutPage() {
                       <p className="font-medium">{item.product.name} x {item.quantity}</p>
                       {item.product.variant && (
                         <p className="text-cavree-muted text-xs">{item.product.variant.size} {item.product.variant.color}</p>
+                      )}
+                      {item.franchiseName && (
+                        <p className="text-xs text-cavree-primary flex items-center gap-1 mt-0.5">
+                          <Store size={10} /> {item.franchiseName}
+                        </p>
                       )}
                     </div>
                     <p className="font-medium">

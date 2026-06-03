@@ -74,6 +74,9 @@ export function Header() {
             <Link href="/shop" className="text-sm font-montserrat font-medium text-cavree-foreground hover:text-cavree-primary transition-colors">
               SHOP
             </Link>
+            <Link href="/stores" className="text-sm font-montserrat font-medium text-cavree-foreground hover:text-cavree-primary transition-colors">
+              STORES
+            </Link>
             <Link href="/franchise" className="text-sm font-montserrat font-medium text-cavree-foreground hover:text-cavree-primary transition-colors">
               FRANCHISE
             </Link>
@@ -187,6 +190,9 @@ export function Header() {
             </Link>
             <Link href="/shop" className="block py-3 text-sm font-medium border-b border-cavree-border" onClick={() => setMobileMenuOpen(false)}>
               SHOP
+            </Link>
+            <Link href="/stores" className="block py-3 text-sm font-medium border-b border-cavree-border" onClick={() => setMobileMenuOpen(false)}>
+              STORES
             </Link>
             <Link href="/franchise" className="block py-3 text-sm font-medium border-b border-cavree-border" onClick={() => setMobileMenuOpen(false)}>
               FRANCHISE

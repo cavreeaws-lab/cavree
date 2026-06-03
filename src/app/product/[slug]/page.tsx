@@ -21,6 +21,8 @@ import {
   X,
   Ruler,
   AlertCircle,
+  Store,
+  MapPin,
 } from "lucide-react"
 import toast from "react-hot-toast"
 import RecentlyViewed from "@/components/RecentlyViewed"
@@ -427,6 +429,35 @@ export default function ProductDetailPage() {
               </span>
             )}
           </div>
+
+          {/* Franchise info */}
+          {product.franchise && (
+            <div className="mt-4 rounded-lg border border-cavree-border bg-white p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cavree-primary/10">
+                    <Store size={18} className="text-cavree-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Sold by {product.franchise.name}</p>
+                    {product.franchise.city && (
+                      <p className="text-xs text-cavree-muted flex items-center gap-1">
+                        <MapPin size={12} /> {product.franchise.city}{product.franchise.state ? `, ${product.franchise.state}` : ""}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {product.franchise.slug && (
+                  <Link
+                    href={`/store/${product.franchise.slug}`}
+                    className="text-sm text-cavree-primary hover:underline"
+                  >
+                    Visit Store
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
 
           <p className="text-cavree-muted font-poppins text-sm leading-relaxed mt-6">
             {product.description || "No description available."}

@@ -76,6 +76,10 @@ export async function GET(
       media: { orderBy: { sortOrder: "asc" as const } },
       variants: true,
       _count: { select: { reviews: true } },
+      productStocks: {
+        where: { franchiseId: franchise.id },
+        select: { quantity: true, lowStockThreshold: true },
+      },
     }
 
     const [products, total, categories] = await Promise.all([

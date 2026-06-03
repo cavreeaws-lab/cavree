@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useMemo, useState } from "react"
 import { useCart } from "@/hooks/useCart"
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Tag, CheckCircle } from "lucide-react"
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Tag, CheckCircle, Store } from "lucide-react"
 import toast from "react-hot-toast"
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL"]
@@ -157,6 +157,11 @@ export default function CartPage() {
                   <Link href={`/product/${item.product.slug}`}>
                     <h3 className="font-playfair font-semibold text-base truncate">{item.product.name}</h3>
                   </Link>
+                  {item.franchiseName && (
+                    <p className="text-xs text-cavree-primary font-poppins mt-0.5 flex items-center gap-1">
+                      <Store size={12} /> From {item.franchiseName}
+                    </p>
+                  )}
                   {item.product.variant && (
                     <p className="text-sm text-cavree-muted font-poppins mt-0.5">
                       {item.product.variant.size} {item.product.variant.color}

@@ -36,7 +36,7 @@ function PriceDisplay({ price, comparePrice, size = "md" }: { price: number; com
   )
 }
 
-function AddToCartButton({ product }: { product: any }) {
+function AddToCartButton({ product, franchiseId, franchiseName }: { product: any; franchiseId?: string; franchiseName?: string }) {
   const { addItem } = useCart()
   const handleAdd = () => {
     addItem(
@@ -46,8 +46,13 @@ function AddToCartButton({ product }: { product: any }) {
         slug: product.slug,
         price: product.price,
         image: product.images?.[0]?.url || "/images/placeholder.jpg",
+        franchiseId,
+        franchiseName,
       },
-      1
+      1,
+      undefined,
+      franchiseId,
+      franchiseName
     )
     toast.success("Added to cart!")
   }
@@ -373,12 +378,12 @@ export default function FranchisePublicStorePage() {
                   </Link>
                   <div className="mt-2 flex items-center justify-between">
                     <PriceDisplay price={product.price} comparePrice={product.comparePrice} size="sm" />
-                    <span className={`text-xs ${product.quantity <= (product.lowStockThreshold || 5) ? "text-cavree-secondary" : "text-cavree-muted"}`}>
-                      {product.quantity > 0 ? `${product.quantity} left` : "Out of stock"}
+                    <span className={`text-xs ${((product.productStocks?.[0]?.quantity ?? product.quantity) <= (product.productStocks?.[0]?.lowStockThreshold || product.lowStockThreshold || 5)) ? "text-cavree-secondary" : "text-cavree-muted"}`}>
+                      {(product.productStocks?.[0]?.quantity ?? product.quantity) > 0 ? `${product.productStocks?.[0]?.quantity ?? product.quantity} left` : "Out of stock"}
                     </span>
                   </div>
                   <div className="mt-3">
-                    <AddToCartButton product={product} />
+                    <AddToCartButton product={product} franchiseId={franchise?.id} franchiseName={franchise?.name} />
                   </div>
                 </div>
               </div>
@@ -403,13 +408,13 @@ export default function FranchisePublicStorePage() {
                   </Link>
                   <div className="mt-2 flex items-center gap-4">
                     <PriceDisplay price={product.price} comparePrice={product.comparePrice} size="sm" />
-                    <span className={`text-xs ${product.quantity <= (product.lowStockThreshold || 5) ? "text-cavree-secondary" : "text-cavree-muted"}`}>
-                      {product.quantity > 0 ? `${product.quantity} in stock` : "Out of stock"}
+                    <span className={`text-xs ${((product.productStocks?.[0]?.quantity ?? product.quantity) <= (product.productStocks?.[0]?.lowStockThreshold || product.lowStockThreshold || 5)) ? "text-cavree-secondary" : "text-cavree-muted"}`}>
+                      {(product.productStocks?.[0]?.quantity ?? product.quantity) > 0 ? `${product.productStocks?.[0]?.quantity ?? product.quantity} in stock` : "Out of stock"}
                     </span>
                   </div>
                 </div>
                 <div className="shrink-0">
-                  <AddToCartButton product={product} />
+                  <AddToCartButton product={product} franchiseId={franchise?.id} franchiseName={franchise?.name} />
                 </div>
               </div>
             ))}

@@ -54,6 +54,7 @@ export const createOrderSchema = z.object({
   couponCode: z.string().optional(),
   notes: z.string().optional(),
   idempotencyKey: z.string().trim().min(8).max(120).optional(),
+  franchiseId: z.string().optional(),
 })
 
 export const paymentCreateSchema = z.object({

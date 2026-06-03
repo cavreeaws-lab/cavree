@@ -15,6 +15,8 @@ export interface CartProduct {
   slug: string
   price: number
   image: string
+  franchiseId?: string
+  franchiseName?: string
   variants?: CartVariant[]
   variant?: CartVariant
 }
@@ -23,29 +25,33 @@ interface CartItem {
   id: string
   product: CartProduct
   quantity: number
+  franchiseId?: string
+  franchiseName?: string
 }
 
 interface CartState {
   items: CartItem[]
-  addItem: (product: CartProduct, quantity?: number, variant?: CartProduct["variant"]) => void
+  addItem: (product: CartProduct, quantity?: number, variant?: CartProduct["variant"], franchiseId?: string, franchiseName?: string) => void
   removeItem: (itemId: string) => void
   updateQuantity: (itemId: string, quantity: number) => void
   updateVariant: (itemId: string, variant: CartVariant) => void
   clearCart: () => void
   getTotalItems: () => number
   getTotalPrice: () => number
+  getFranchiseId: () => string | undefined
 }
 
 export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
-      addItem: (product, quantity = 1, variant) => {
+      addItem: (product, quantity = 1, variant, franchiseId, franchiseName) => {
         const items = get().items
         const existingItem = items.find(
           (item) =>
             item.product.id === product.id &&
-            item.product.variant?.id === variant?.id
+            item.product.variant?.id === variant?.id &&
+            item.franchiseId === franchiseId
         )
 
         if (existingItem) {
@@ -64,6 +70,8 @@ export const useCart = create<CartState>()(
                 id: `${product.id}-${variant?.id || "default"}-${Date.now()}`,
                 product: { ...product, variant },
                 quantity,
+                franchiseId,
+                franchiseName,
               },
             ],
           })
@@ -124,6 +132,14 @@ export const useCart = create<CartState>()(
           const price = item.product.variant?.price ?? item.product.price
           return total + price * item.quantity
         }, 0),
+      getFranchiseId: () => {
+        const items = get().items
+        if (items.length === 0) return undefined
+        const first = items[0].franchiseId
+        if (!first) return undefined
+        const allSame = items.every((item) => item.franchiseId === first)
+        return allSame ? first : undefined
+      },
     }),
     {
       name: "cavree-cart",

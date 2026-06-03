@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validation.errors.flatten().fieldErrors }, { status: 400 })
     }
     const { items, addressId, paymentMethod, couponCode, notes } = validation.data
+    const bodyFranchiseId = validation.data.franchiseId
     idempotencyKey = validation.data.idempotencyKey
 
     if (idempotencyKey) {
@@ -152,19 +153,37 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Auto-route order to franchise based on customer location and stock
-    const firstItem = items[0]
-    const firstProduct: any = productMap.get(firstItem.productId)
-    const firstVariant = firstItem.variantId ? firstProduct.variants.find((v: any) => v.id === firstItem.variantId) : null
-    const routed = await routeOrderToFranchise(
-      firstItem.productId,
-      firstItem.variantId || null,
-      firstItem.quantity,
-      address.city || "",
-      address.pincode || undefined
-    )
-    const franchiseId = routed.franchiseId
-    const autoAccepted = routed.autoAccepted
+    let franchiseId: string
+    let autoAccepted = false
+    let routingReason: string
+
+    if (bodyFranchiseId) {
+      // Customer shopped from a specific franchise store — route to that franchise
+      const franchise = await prisma.franchise.findUnique({
+        where: { id: bodyFranchiseId, isActive: true, isApproved: true },
+      })
+      if (!franchise) {
+        return NextResponse.json({ error: "Selected franchise is not available" }, { status: 400 })
+      }
+      franchiseId = franchise.id
+      autoAccepted = (franchise as any).autoAcceptOrders
+      routingReason = "Customer purchased from franchise store"
+    } else {
+      // Auto-route order to franchise based on customer location and stock
+      const firstItem = items[0]
+      const firstProduct: any = productMap.get(firstItem.productId)
+      const firstVariant = firstItem.variantId ? firstProduct.variants.find((v: any) => v.id === firstItem.variantId) : null
+      const routed = await routeOrderToFranchise(
+        firstItem.productId,
+        firstItem.variantId || null,
+        firstItem.quantity,
+        address.city || "",
+        address.pincode || undefined
+      )
+      franchiseId = routed.franchiseId
+      autoAccepted = routed.autoAccepted
+      routingReason = routed.reason
+    }
 
     const shipping = 0
     let discount = 0
@@ -256,7 +275,7 @@ export async function POST(request: NextRequest) {
           addressId,
           franchiseId,
           routedAt: new Date(),
-          routingReason: routed.reason,
+          routingReason,
           items: { create: orderItemsData },
           payment: {
             create: {
