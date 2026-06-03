@@ -10,8 +10,12 @@ export async function GET() {
     const userId = session.userId as string
     const isFranchise = session.role === "FRANCHISEE"
 
-    const [franchise, orders, cart, products] = await Promise.all([
-      prisma.franchise.findFirst({ where: isFranchise ? { ownerId: userId } : {}, orderBy: { createdAt: "desc" } }),
+    const franchise = await prisma.franchise.findFirst({
+      where: isFranchise ? { ownerId: userId } : {},
+      orderBy: { createdAt: "desc" },
+    })
+
+    const [orders, cart, products] = await Promise.all([
       prisma.order.findMany({
         where: isFranchise ? { userId } : {},
         orderBy: { createdAt: "desc" },
@@ -19,7 +23,12 @@ export async function GET() {
         include: { items: true },
       }),
       prisma.cart.findUnique({ where: { userId }, include: { items: true } }),
-      prisma.product.count({ where: { isActive: true, ...(isFranchise && franchise?.id ? { franchiseId: franchise.id } : {}) } }),
+      prisma.product.count({
+        where: {
+          isActive: true,
+          ...(franchise?.id ? { franchiseId: franchise.id } : {}),
+        },
+      }),
     ])
 
     const totalSpend = orders.reduce((sum, order) => sum + order.total, 0)
