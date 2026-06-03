@@ -23,6 +23,7 @@ export async function GET(
         media: { orderBy: { sortOrder: "asc" } },
         variants: true,
         category: { select: { id: true, name: true } },
+        franchise: { select: { id: true, name: true, city: true } },
       },
     })
     if (!product) {
@@ -96,6 +97,7 @@ export async function PUT(
           allowBackorders: data.allowBackorders,
           lowStockThreshold: data.lowStockThreshold,
           categoryId: data.categoryId,
+          franchiseId: data.franchiseId,
           isActive: data.isActive,
           isFeatured: data.isFeatured,
           isNew: data.isNew,

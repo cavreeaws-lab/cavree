@@ -80,6 +80,7 @@ export async function GET(request: NextRequest) {
         take: limit,
         include: {
           category: { select: { name: true } },
+          franchise: { select: { name: true } },
           images: { take: 1 },
           media: { orderBy: { sortOrder: "asc" } },
           variants: true,

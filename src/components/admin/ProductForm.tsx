@@ -10,7 +10,7 @@ type ProductFormProps = {
   productId?: string
 }
 
-const tabs = ["General", "Pricing", "Inventory", "Variants", "Media", "SEO", "Shipping"]
+const tabs = ["General", "Pricing", "Inventory", "Variants", "Media", "SEO", "Shipping", "Franchise Stock"]
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 const VIDEO_TYPES = ["video/mp4", "video/webm"]
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"]
@@ -36,6 +36,7 @@ const emptyForm = {
   minimumQuantityLimit: "",
   quantity: "",
   categoryId: "",
+  franchiseId: "",
   tags: "",
   isActive: true,
   isFeatured: false,
@@ -56,8 +57,11 @@ export default function ProductForm({ mode, productId }: ProductFormProps) {
   const [activeTab, setActiveTab] = useState("General")
   const [form, setForm] = useState(emptyForm)
   const [categories, setCategories] = useState<any[]>([])
+  const [franchises, setFranchises] = useState<any[]>([])
+  const [userRole, setUserRole] = useState<string>("")
   const [media, setMedia] = useState<Array<{ type: "IMAGE" | "VIDEO"; url: string; posterUrl: string; alt: string }>>([])
   const [variants, setVariants] = useState<Array<{ size: string; color: string; colorCode: string; sku: string; price: string; quantity: string }>>([])
+  const [franchiseStocks, setFranchiseStocks] = useState<any[]>([])
   const [uploading, setUploading] = useState<Record<number, boolean>>({})
   const [loading, setLoading] = useState(mode === "edit")
   const [saving, setSaving] = useState(false)
@@ -66,6 +70,20 @@ export default function ProductForm({ mode, productId }: ProductFormProps) {
     fetch("/api/admin/categories")
       .then((res) => res.json())
       .then((data) => setCategories(data.categories || []))
+      .catch(() => {})
+
+    fetch("/api/auth/session")
+      .then((res) => res.json())
+      .then((data) => {
+        const role = data?.user?.role || ""
+        setUserRole(role)
+        if (role === "SUPER_ADMIN" || role === "ADMIN") {
+          fetch("/api/super-admin/franchises?limit=1000")
+            .then((res) => res.json())
+            .then((data) => setFranchises(data.franchises || []))
+            .catch(() => {})
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -98,6 +116,7 @@ export default function ProductForm({ mode, productId }: ProductFormProps) {
           minimumQuantityLimit: product.minimumQuantityLimit ? String(product.minimumQuantityLimit) : "",
           quantity: String(product.quantity || ""),
           categoryId: product.categoryId || "",
+          franchiseId: product.franchiseId || "",
           tags: (product.tags || []).join(", "),
           isActive: product.isActive ?? true,
           isFeatured: product.isFeatured ?? false,
@@ -126,6 +145,12 @@ export default function ProductForm({ mode, productId }: ProductFormProps) {
           price: variant.price ? String(variant.price) : "",
           quantity: String(variant.quantity || 0),
         })))
+        if (mode === "edit" && productId) {
+          fetch(`/api/admin/products/${productId}/franchise-stock`)
+            .then((res) => res.json())
+            .then((data) => setFranchiseStocks(data.stocks || []))
+            .catch(() => {})
+        }
       })
       .catch(() => toast.error("Failed to load product"))
       .finally(() => setLoading(false))
@@ -148,6 +173,7 @@ export default function ProductForm({ mode, productId }: ProductFormProps) {
     franchiseBulkPrice: form.franchiseBulkPrice ? Number(form.franchiseBulkPrice) : undefined,
     minimumQuantityLimit: form.minimumQuantityLimit ? Number(form.minimumQuantityLimit) : undefined,
     quantity: Number(form.quantity || 0),
+    franchiseId: form.franchiseId || undefined,
     categoryId: form.categoryId,
     tags: form.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
     isActive: form.isActive,
@@ -345,6 +371,14 @@ export default function ProductForm({ mode, productId }: ProductFormProps) {
                 </select>
               </Field>
               <Field label="Brand"><input value={form.brand} onChange={(e) => setField("brand", e.target.value)} className="input" /></Field>
+              {(userRole === "SUPER_ADMIN" || userRole === "ADMIN") && (
+                <Field label="Franchise *">
+                  <select value={form.franchiseId} onChange={(e) => setField("franchiseId", e.target.value)} className="input">
+                    <option value="">Select franchise</option>
+                    {franchises.map((f) => <option key={f.id} value={f.id}>{f.name} {f.city ? `(${f.city})` : ""}</option>)}
+                  </select>
+                </Field>
+              )}
               <Field label="Tags"><input value={form.tags} onChange={(e) => setField("tags", e.target.value)} placeholder="comma separated" className="input" /></Field>
               <Field label="Description" className="lg:col-span-2"><textarea value={form.description} onChange={(e) => setField("description", e.target.value)} rows={5} className="input resize-none" /></Field>
               <Toggle label="Active" checked={form.isActive} onChange={(value) => setField("isActive", value)} />
@@ -445,6 +479,110 @@ export default function ProductForm({ mode, productId }: ProductFormProps) {
               <Field label="Length"><input type="number" value={form.length} onChange={(e) => setField("length", e.target.value)} className="input" /></Field>
               <Field label="Width"><input type="number" value={form.width} onChange={(e) => setField("width", e.target.value)} className="input" /></Field>
               <Field label="Height"><input type="number" value={form.height} onChange={(e) => setField("height", e.target.value)} className="input" /></Field>
+            </div>
+          )}
+
+          {activeTab === "Franchise Stock" && mode === "edit" && productId && (
+            <div className="space-y-4">
+              <div className="grid gap-3 rounded-lg border border-cavree-border p-4 lg:grid-cols-4">
+                <select value="" onChange={(e) => {
+                  if (!e.target.value) return
+                  const existing = franchiseStocks.find((s) => s.franchiseId === e.target.value)
+                  if (existing) {
+                    toast.error("Stock already set for this franchise")
+                    return
+                  }
+                  fetch(`/api/admin/products/${productId}/franchise-stock`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ franchiseId: e.target.value, quantity: 0 }),
+                  })
+                    .then((res) => res.json())
+                    .then((data) => {
+                      if (data.stock) {
+                        setFranchiseStocks((prev) => [...prev, data.stock])
+                        toast.success("Franchise stock added")
+                      } else {
+                        toast.error(data.error || "Failed")
+                      }
+                    })
+                    .catch(() => toast.error("Failed to add stock"))
+                }} className="input">
+                  <option value="">Add franchise stock...</option>
+                  {franchises.filter((f) => !franchiseStocks.some((s) => s.franchiseId === f.id)).map((f) => (
+                    <option key={f.id} value={f.id}>{f.name} {f.city ? `(${f.city})` : ""}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left px-4 py-2">Franchise</th>
+                      <th className="text-left px-4 py-2">Quantity</th>
+                      <th className="text-left px-4 py-2">Low Stock Threshold</th>
+                      <th className="text-right px-4 py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {franchiseStocks.map((stock) => (
+                      <tr key={stock.id} className="border-t">
+                        <td className="px-4 py-2">{stock.franchise?.name || stock.franchiseId}</td>
+                        <td className="px-4 py-2">
+                          <input
+                            type="number"
+                            value={stock.quantity}
+                            onChange={(e) => {
+                              const val = Number(e.target.value)
+                              setFranchiseStocks((prev) => prev.map((s) => s.id === stock.id ? { ...s, quantity: val } : s))
+                            }}
+                            onBlur={() => {
+                              fetch(`/api/admin/products/${productId}/franchise-stock`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ franchiseId: stock.franchiseId, quantity: stock.quantity, lowStockThreshold: stock.lowStockThreshold }),
+                              }).catch(() => {})
+                            }}
+                            className="w-24 border rounded-md px-2 py-1 text-sm"
+                          />
+                        </td>
+                        <td className="px-4 py-2">
+                          <input
+                            type="number"
+                            value={stock.lowStockThreshold}
+                            onChange={(e) => {
+                              const val = Number(e.target.value)
+                              setFranchiseStocks((prev) => prev.map((s) => s.id === stock.id ? { ...s, lowStockThreshold: val } : s))
+                            }}
+                            onBlur={() => {
+                              fetch(`/api/admin/products/${productId}/franchise-stock`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ franchiseId: stock.franchiseId, quantity: stock.quantity, lowStockThreshold: stock.lowStockThreshold }),
+                              }).catch(() => {})
+                            }}
+                            className="w-24 border rounded-md px-2 py-1 text-sm"
+                          />
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <button
+                            onClick={() => {
+                              if (!confirm("Remove this franchise stock?")) return
+                              setFranchiseStocks((prev) => prev.filter((s) => s.id !== stock.id))
+                            }}
+                            className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {franchiseStocks.length === 0 && (
+                      <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">No franchise stock records yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

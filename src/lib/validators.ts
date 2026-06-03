@@ -99,6 +99,7 @@ export const productUpdateSchema = z.object({
   metaTitle: z.string().optional(),
   metaDescription: z.string().optional(),
   categoryId: z.string().optional(),
+  franchiseId: z.string().optional(),
   images: z.array(z.object({ url: z.string(), alt: z.string().optional() })).optional(),
   media: z.array(z.object({
     type: z.enum(["IMAGE", "VIDEO"]).default("IMAGE"),

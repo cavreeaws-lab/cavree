@@ -168,6 +168,7 @@ export default function AdminProductsPage() {
               <div className="mt-3">
                 <p className="text-xs text-cavree-muted font-poppins">{product.category?.name || "Uncategorized"}</p>
                 <h3 className="mt-1 font-playfair text-base font-semibold line-clamp-1">{product.name}</h3>
+                <p className="text-xs text-cavree-muted font-poppins mt-0.5">{product.franchise?.name || "No franchise"}</p>
                 <div className="mt-2 flex items-center justify-between gap-3 text-sm">
                   <PriceDisplay price={product.price} comparePrice={product.comparePrice} size="sm" />
                   <span className={product.quantity <= (product.lowStockThreshold || 5) ? "text-cavree-secondary" : "text-cavree-muted"}>{product.quantity} in stock</span>
@@ -190,6 +191,7 @@ export default function AdminProductsPage() {
                 <th className="text-left px-6 py-3 text-xs font-semibold text-cavree-muted uppercase tracking-wider">Product</th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-cavree-muted uppercase tracking-wider">SKU</th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-cavree-muted uppercase tracking-wider">Category</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-cavree-muted uppercase tracking-wider">Franchise</th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-cavree-muted uppercase tracking-wider">Price</th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-cavree-muted uppercase tracking-wider">Stock</th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-cavree-muted uppercase tracking-wider">Status</th>
@@ -198,7 +200,7 @@ export default function AdminProductsPage() {
             </thead>
             <tbody className="divide-y divide-cavree-border">
               {loading ? [...Array(5)].map((_, i) => (
-                <tr key={i}><td colSpan={7} className="px-6 py-4"><div className="h-8 animate-pulse rounded bg-cavree-light" /></td></tr>
+                <tr key={i}><td colSpan={8} className="px-6 py-4"><div className="h-8 animate-pulse rounded bg-cavree-light" /></td></tr>
               )) : products.map((product) => (
                 <tr key={product.id} className="hover:bg-cavree-light/50 transition-colors">
                   <td className="px-6 py-4">
@@ -211,6 +213,7 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="px-6 py-4 text-sm font-poppins">{product.sku}</td>
                   <td className="px-6 py-4 text-sm font-poppins">{product.category?.name || "-"}</td>
+                  <td className="px-6 py-4 text-sm font-poppins">{product.franchise?.name || "-"}</td>
                   <td className="px-6 py-4 text-sm font-medium">
                     <PriceDisplay price={product.price} comparePrice={product.comparePrice} size="sm" />
                   </td>
