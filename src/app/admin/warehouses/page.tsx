@@ -1,14 +1,70 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import toast from "react-hot-toast"
+import { Search, X, Package, Loader2 } from "lucide-react"
 
 export default function AdminWarehousesPage() {
   const [warehouses, setWarehouses] = useState<any[]>([])
   const [form, setForm] = useState({ name: "", city: "", state: "", address: "", coordinatorName: "", coordinatorEmail: "", coordinatorPhone: "" })
   const [movement, setMovement] = useState({ warehouseId: "", productCode: "", productName: "", quantity: "", type: "IN", reason: "" })
+  const [productQuery, setProductQuery] = useState("")
+  const [productResults, setProductResults] = useState<any[]>([])
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
+  const [searchingProducts, setSearchingProducts] = useState(false)
+  const [showProductDropdown, setShowProductDropdown] = useState(false)
+  const productSearchRef = useRef<HTMLDivElement>(null)
   const load = () => fetch("/api/admin/warehouses").then((res) => res.json()).then((data) => setWarehouses(data.warehouses || []))
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    if (!productQuery.trim() || productQuery.length < 2) {
+      setProductResults([])
+      setShowProductDropdown(false)
+      return
+    }
+    const timer = setTimeout(async () => {
+      setSearchingProducts(true)
+      try {
+        const res = await fetch(`/api/admin/products?search=${encodeURIComponent(productQuery)}&limit=10`)
+        if (res.ok) {
+          const data = await res.json()
+          setProductResults(data.products || [])
+          setShowProductDropdown(true)
+        }
+      } finally {
+        setSearchingProducts(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [productQuery])
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (productSearchRef.current && !productSearchRef.current.contains(e.target as Node)) {
+        setShowProductDropdown(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  const handleSelectProduct = (product: any) => {
+    setSelectedProduct(product)
+    setMovement((m) => ({
+      ...m,
+      productCode: product.sku || "",
+      productName: product.name || "",
+    }))
+    setProductQuery("")
+    setShowProductDropdown(false)
+    setProductResults([])
+  }
+
+  const handleClearProduct = () => {
+    setSelectedProduct(null)
+    setMovement((m) => ({ ...m, productCode: "", productName: "" }))
+  }
 
   const stats = useMemo(() => {
     const coordinators = warehouses.reduce((sum, warehouse) => sum + (warehouse.coordinators?.length || 0), 0)
@@ -33,6 +89,10 @@ export default function AdminWarehousesPage() {
     if (!res.ok) return toast.error(data.error || "Failed to record movement")
     toast.success("Stock movement recorded")
     setMovement({ warehouseId: "", productCode: "", productName: "", quantity: "", type: "IN", reason: "" })
+    setSelectedProduct(null)
+    setProductQuery("")
+    setShowProductDropdown(false)
+    setProductResults([])
     load()
   }
 
@@ -65,8 +125,92 @@ export default function AdminWarehousesPage() {
             {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
           </select>
           <select value={movement.type} onChange={(e) => setMovement({ ...movement, type: e.target.value })} className="input"><option>IN</option><option>OUT</option><option>ADJUSTMENT</option><option>LOW_STOCK</option></select>
-          <input value={movement.productCode} onChange={(e) => setMovement({ ...movement, productCode: e.target.value })} placeholder="Product code" className="input" />
-          <input required value={movement.productName} onChange={(e) => setMovement({ ...movement, productName: e.target.value })} placeholder="Product name" className="input" />
+
+          {/* Product search / selected product */}
+          <div className="md:col-span-2 relative" ref={productSearchRef}>
+            {!selectedProduct ? (
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-cavree-muted" />
+                <input
+                  value={productQuery}
+                  onChange={(e) => setProductQuery(e.target.value)}
+                  onFocus={() => productResults.length > 0 && setShowProductDropdown(true)}
+                  placeholder="Search product by code, name, or model..."
+                  className="input w-full pl-9 pr-9"
+                />
+                {productQuery && (
+                  <button
+                    type="button"
+                    onClick={() => { setProductQuery(""); setProductResults([]); setShowProductDropdown(false); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-cavree-muted hover:text-cavree-foreground"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+                {showProductDropdown && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border border-cavree-border bg-white shadow-lg max-h-60 overflow-auto">
+                    {searchingProducts ? (
+                      <div className="flex items-center justify-center gap-2 py-4 text-sm text-cavree-muted">
+                        <Loader2 size={16} className="animate-spin" /> Searching...
+                      </div>
+                    ) : productResults.length === 0 ? (
+                      <div className="py-4 text-center text-sm text-cavree-muted">No products found</div>
+                    ) : (
+                      productResults.map((product) => (
+                        <button
+                          key={product.id}
+                          type="button"
+                          onClick={() => handleSelectProduct(product)}
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-cavree-light transition-colors"
+                        >
+                          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-cavree-light">
+                            {product.images?.[0]?.url ? (
+                              <img src={product.images[0].url} alt={product.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <Package size={16} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-cavree-muted" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{product.name}</p>
+                            <p className="text-xs text-cavree-muted">
+                              SKU: {product.sku}
+                              {product.modelNumber ? ` · Model: ${product.modelNumber}` : ""}
+                            </p>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-md border border-cavree-border bg-cavree-light/50 p-3">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-white">
+                  {selectedProduct.images?.[0]?.url ? (
+                    <img src={selectedProduct.images[0].url} alt={selectedProduct.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <Package size={20} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-cavree-muted" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{selectedProduct.name}</p>
+                  <p className="text-xs text-cavree-muted">
+                    SKU: {selectedProduct.sku}
+                    {selectedProduct.modelNumber ? ` · Model: ${selectedProduct.modelNumber}` : ""}
+                    {selectedProduct.quantity !== undefined ? ` · Stock: ${selectedProduct.quantity}` : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearProduct}
+                  className="text-cavree-muted hover:text-red-500 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+
           <input required type="number" value={movement.quantity} onChange={(e) => setMovement({ ...movement, quantity: e.target.value })} placeholder="Quantity" className="input" />
           <input value={movement.reason} onChange={(e) => setMovement({ ...movement, reason: e.target.value })} placeholder="Reason" className="input" />
           <button className="rounded-md bg-cavree-primary px-4 py-2 text-sm font-medium text-white">Record Movement</button>
