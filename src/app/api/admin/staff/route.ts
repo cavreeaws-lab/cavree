@@ -42,6 +42,9 @@ export async function POST(request: NextRequest) {
     if (!franchiseId) {
       return NextResponse.json({ error: "Franchise ID required" }, { status: 400 })
     }
+    if (scope.isFranchiseScoped && body.franchiseId && body.franchiseId !== scope.franchiseId) {
+      return NextResponse.json({ error: "You can only create staff for your own franchise" }, { status: 403 })
+    }
 
     let userId: string | null = null
     if (body.email && body.password) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, verifyPassword } from "@/lib/auth"
 import { validate, bulkCheckoutSchema } from "@/lib/validators"
-import { logActivity } from "@/lib/admin"
+import { getAdminScope, logActivity } from "@/lib/admin"
 
 export const dynamic = "force-dynamic"
 
@@ -15,6 +15,7 @@ function generateBulkOrderNumber() {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
+    const scope = await getAdminScope(session)
     const body = await request.json()
     const validation = validate(bulkCheckoutSchema, body)
     if (!validation.success) {
@@ -45,7 +46,8 @@ export async function POST(request: NextRequest) {
     const isAdmin = session.role === "ADMIN" || session.role === "SUPER_ADMIN"
     const ownsRetailer = retailer?.userId === session.userId
     const ownsFranchise = franchise?.ownerId === session.userId
-    if (!isAdmin && !ownsRetailer && !ownsFranchise) {
+    const isStaffForFranchise = scope.franchiseId && franchise?.id === scope.franchiseId
+    if (!isAdmin && !ownsRetailer && !ownsFranchise && !isStaffForFranchise) {
       return NextResponse.json({ error: "Franchise code does not match this account" }, { status: 403 })
     }
     if (!cart?.items.length) {

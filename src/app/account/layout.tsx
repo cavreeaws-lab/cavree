@@ -28,7 +28,19 @@ export default function AccountLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const { logout } = useAuth()
+  const { logout, loading, user } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cavree-primary" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -86,7 +86,7 @@ export default function AdminLayout({
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-  const { user, logout } = useAuth()
+  const { user, logout, loading } = useAuth()
   const navItems = navGroups.flatMap((group) => group.items)
   const currentItem = navItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
   const isFranchiseUser = user?.role === "FRANCHISEE"
@@ -95,6 +95,18 @@ export default function AdminLayout({
     const parts = pathname.split("/").filter(Boolean).slice(1)
     return [portalLabel, ...parts.map((part) => part.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()))]
   }, [pathname, portalLabel])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cavree-primary" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

@@ -6,6 +6,21 @@ import { getAdminScope, logActivity } from "@/lib/admin"
 
 export const dynamic = "force-dynamic"
 
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  PENDING: ["CONFIRMED", "CANCELLED"],
+  CONFIRMED: ["PROCESSING", "CANCELLED"],
+  PROCESSING: ["SHIPPED", "CANCELLED"],
+  SHIPPED: ["DELIVERED", "RETURNED"],
+  DELIVERED: ["RETURNED"],
+  RETURNED: ["REFUNDED"],
+  REFUNDED: [],
+  CANCELLED: [],
+}
+
+function isValidTransition(current: string, next: string): boolean {
+  return VALID_TRANSITIONS[current]?.includes(next) ?? false
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -64,8 +79,33 @@ export async function PUT(
     if (!validation.success) {
       return NextResponse.json({ error: validation.errors.flatten().fieldErrors }, { status: 400 })
     }
-    const order = await prisma.$transaction(async (tx) => {
-      const status = validation.data.status
+
+    const newStatus = validation.data.status
+    if (!isValidTransition(existing.status, newStatus)) {
+      return NextResponse.json(
+        { error: `Invalid status transition from ${existing.status} to ${newStatus}` },
+        { status: 400 }
+      )
+    }
+
+    const orderWithPayment = await prisma.order.findFirst({
+      where: { id: params.id },
+      include: { payment: true, franchise: { select: { id: true, commission: true } }, items: true },
+    })
+
+    if (!orderWithPayment) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 })
+    }
+
+    const payment = orderWithPayment.payment
+    if ((status === "SHIPPED" || status === "DELIVERED") && payment?.method === "RAZORPAY" && payment?.status !== "COMPLETED") {
+      return NextResponse.json(
+        { error: "Cannot ship/deliver Razorpay order before payment is verified" },
+        { status: 400 }
+      )
+    }
+
+    const order = await prisma.$transaction(async (tx: any) => {
       const shippingStatus =
         status === "SHIPPED" ? "SHIPPED" :
         status === "DELIVERED" ? "DELIVERED" :
@@ -101,6 +141,38 @@ export async function PUT(
             deliveredAt: status === "DELIVERED" ? new Date() : undefined,
           },
         })
+      }
+
+      if (status === "DELIVERED" && orderWithPayment.franchise) {
+        const commissionRate = (orderWithPayment.franchise.commission || 10) / 100
+        const commissionAmount = orderWithPayment.subtotal * commissionRate
+        const existingCredit = await tx.commissionCredit.findFirst({
+          where: { source: `order-${orderWithPayment.id}`, franchiseId: orderWithPayment.franchise.id },
+        })
+        if (!existingCredit && commissionAmount > 0) {
+          await tx.commissionCredit.create({
+            data: {
+              amount: commissionAmount,
+              rate: commissionRate * 100,
+              source: `order-${orderWithPayment.id}`,
+              status: "PENDING" as any,
+              franchiseId: orderWithPayment.franchise.id,
+              userId: orderWithPayment.userId,
+            },
+          })
+        }
+      }
+
+      if (status === "CONFIRMED") {
+        const existingInvoice = await tx.invoice.findFirst({ where: { orderId: params.id } })
+        if (!existingInvoice) {
+          await tx.invoice.create({
+            data: {
+              orderId: params.id,
+              invoiceNumber: `INV-${orderWithPayment.orderNumber}`,
+            },
+          })
+        }
       }
 
       return tx.order.update({

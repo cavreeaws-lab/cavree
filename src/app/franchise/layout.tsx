@@ -19,10 +19,22 @@ function isProtectedFranchisePath(pathname: string) {
 
 export default function FranchiseLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { user, logout } = useAuth()
+  const { user, logout, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cavree-primary" />
+      </div>
+    )
+  }
 
   if (!isProtectedFranchisePath(pathname)) {
     return <>{children}</>
+  }
+
+  if (!user) {
+    return null
   }
 
   return (

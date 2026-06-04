@@ -21,6 +21,19 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       },
     })
 
+    if (body.status === "APPROVED" || body.status === "REJECTED") {
+      const orderStatus = body.status === "APPROVED" ? "RETURNED" : "DELIVERED"
+      const paymentStatus = body.status === "APPROVED" ? "REFUNDED" : "COMPLETED"
+      await prisma.order.update({
+        where: { id: ret.orderId },
+        data: { status: orderStatus },
+      })
+      await prisma.payment.updateMany({
+        where: { orderId: ret.orderId },
+        data: { status: paymentStatus },
+      })
+    }
+
     await logActivity({
       userId: session.userId as string,
       action: "ARBITRATE",

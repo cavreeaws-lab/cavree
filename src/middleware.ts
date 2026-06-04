@@ -113,7 +113,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/", request.url))
     }
 
-    if (isAdminRoute && !["ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"].includes(role!)) {
+    if (isAdminRoute && !["ADMIN", "SUPER_ADMIN"].includes(role!)) {
       return NextResponse.redirect(new URL("/", request.url))
     }
 

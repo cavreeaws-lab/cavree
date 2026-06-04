@@ -54,6 +54,18 @@ enum ProductMediaType {
   VIDEO
 }
 
+enum PayoutStatus {
+  PENDING
+  APPROVED
+  PAID
+}
+
+enum CommissionCreditStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -81,6 +93,19 @@ model User {
   warehouseAssignments WarehouseCoordinator[]
   commissionCredits    CommissionCredit[]
   franchiseStaff       FranchiseStaff?
+  stockAdjustments     StockAdjustment[]
+  customerNotes        CustomerNote[]         @relation("CustomerNoteUser")
+  customerNotesCreated CustomerNote[]         @relation("CustomerNoteCreator")
+  returnRequests       ReturnRequest[]        @relation("ReturnRequestUser")
+  returnArbitrations   ReturnRequest[]        @relation("ReturnRequestArbitrator")
+  notifications        Notification[]
+  recentlyViewed     RecentlyViewed[]
+  pushSubscriptions    PushSubscription[]
+  couponUsages         CouponUsage[]
+  supportTickets       SupportTicket[]
+  activityLogs         ActivityLog[]
+  stockMovements       StockMovement[]
+  franchiseApplications FranchiseApplication[]
 
   @@map("users")
 }
@@ -192,6 +217,7 @@ model Product {
   recentlyViewed RecentlyViewed[]
   returnItems    ReturnRequest[]
   productStocks  ProductFranchiseStock[]
+  stockAdjustments StockAdjustment[]
 
   @@map("products")
 }
@@ -234,6 +260,8 @@ model ProductVariant {
   productId  String
   product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
+  stockAdjustments StockAdjustment[]
+  cartItems  CartItem[]
 
   @@map("product_variants")
 }
@@ -269,13 +297,14 @@ model Cart {
 }
 
 model CartItem {
-  id        String  @id @default(cuid())
-  quantity  Int     @default(1)
+  id        String         @id @default(cuid())
+  quantity  Int            @default(1)
   cartId    String
-  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cart      Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
   productId String
-  product   Product @relation(fields: [productId], references: [id])
+  product   Product        @relation(fields: [productId], references: [id])
   variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   @@map("cart_items")
 }
@@ -305,13 +334,13 @@ model Order {
 
   routedAt            DateTime?
   routingReason       String?
-  originalFranchiseId String?
 
   items          OrderItem[]
   payment        Payment?
   shippingDetail Shipping?
   invoices       Invoice[]
   returns        ReturnRequest[]
+  walletTransactions WalletTransaction[]
 
   @@map("orders")
 }
@@ -402,6 +431,7 @@ model CouponUsage {
   couponId  String
   coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
   userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   orderId   String?
   discount  Float
   createdAt DateTime @default(now())
@@ -484,6 +514,8 @@ model FranchiseApplication {
   space      String
   status     String   @default("PENDING")
   notes      String?
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -525,8 +557,11 @@ model StockAdjustment {
   quantity  Int
   reason    String
   productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
   userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@map("stock_adjustments")
@@ -536,7 +571,9 @@ model CustomerNote {
   id        String   @id @default(cuid())
   note      String
   userId    String
+  user      User     @relation("CustomerNoteUser", fields: [userId], references: [id], onDelete: Cascade)
   createdBy String
+  creator   User     @relation("CustomerNoteCreator", fields: [createdBy], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -550,6 +587,7 @@ model ReturnRequest {
   productId           String?
   product             Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
   userId              String
+  user                User      @relation("ReturnRequestUser", fields: [userId], references: [id], onDelete: Cascade)
   type                String    @default("RETURN")
   reason              String
   status              String    @default("PENDING")
@@ -558,6 +596,7 @@ model ReturnRequest {
   arbitrationNote     String?
   arbitratedAt        DateTime?
   arbitratedBy        String?
+  arbitrator          User?     @relation("ReturnRequestArbitrator", fields: [arbitratedBy], references: [id], onDelete: SetNull)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -581,6 +620,7 @@ model Invoice {
 model Notification {
   id        String   @id @default(cuid())
   userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
   message   String
   type      String   @default("INFO")
@@ -598,6 +638,7 @@ model WalletTransaction {
   type        String
   status      String   @default("PENDING")
   orderId     String?
+  order       Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -608,20 +649,20 @@ model WalletTransaction {
 }
 
 model Payout {
-  id             String    @id @default(cuid())
+  id             String       @id @default(cuid())
   franchiseId    String
   userId         String
   amount         Float
-  commission     Float     @default(0)
-  status         String    @default("PENDING")
+  commission     Float        @default(0)
+  status         PayoutStatus @default(PENDING)
   method         String?
   accountDetails Json?
   paidAt         DateTime?
   notes          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
-  franchise Franchise @relation(fields: [franchiseId], references: [id])
+  franchise Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id])
 
   @@map("payouts")
@@ -630,10 +671,10 @@ model Payout {
 model RecentlyViewed {
   id        String   @id @default(cuid())
   userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId String
+  product   Product  @relation(fields: [productId], references: [id])
   createdAt DateTime @default(now())
-
-  product Product @relation(fields: [productId], references: [id])
 
   @@unique([userId, productId])
   @@map("recently_viewed")
@@ -642,6 +683,7 @@ model RecentlyViewed {
 model ActivityLog {
   id        String   @id @default(cuid())
   userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   action    String
   entity    String
   entityId  String?
@@ -902,6 +944,7 @@ model StockMovement {
   type        String
   reason      String?
   createdBy   String?
+  creator     User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
 
   warehouseId String?
@@ -929,14 +972,14 @@ model CommissionRule {
 }
 
 model CommissionCredit {
-  id        String   @id @default(cuid())
+  id        String               @id @default(cuid())
   amount    Float
   rate      Float
   source    String
-  status    String   @default("PENDING")
+  status    CommissionCreditStatus @default(PENDING)
   notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
 
   ruleId String?
   rule   CommissionRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
@@ -1011,6 +1054,7 @@ model SupportTicket {
   updatedAt   DateTime       @updatedAt
 
   userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   orderId String?
 
   messages TicketMessage[]
@@ -1080,6 +1124,7 @@ model FranchiseWalletTransaction {
 model PushSubscription {
   id        String   @id @default(cuid())
   userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   endpoint  String
   p256dh    String
   auth      String

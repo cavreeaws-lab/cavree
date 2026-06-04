@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
+import { getAdminScope } from "@/lib/admin"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
+    const scope = await getAdminScope(session)
     const order = await prisma.bulkOrder.findUnique({
       where: { id: params.id },
       include: {
@@ -16,7 +18,10 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
       },
     })
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 })
-    if (session.role === "FRANCHISEE" && order.userId !== session.userId) {
+    const isAdmin = session.role === "ADMIN" || session.role === "SUPER_ADMIN"
+    const ownsOrder = order.userId === session.userId
+    const belongsToFranchise = scope.franchiseId && order.retailer?.franchiseId === scope.franchiseId
+    if (!isAdmin && !ownsOrder && !belongsToFranchise) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     return NextResponse.json({ order })

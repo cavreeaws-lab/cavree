@@ -1,21 +1,27 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
+import { getAdminScope } from "@/lib/admin"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
+    const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
+    const scope = await getAdminScope(session)
+    const where: any = {
+      isActive: true,
+      OR: [
+        { id: params.id },
+        { slug: params.id },
+        { productId: params.id },
+      ],
+    }
+    if (scope.franchiseId) {
+      where.franchiseId = scope.franchiseId
+    }
     const product = await prisma.bulkProduct.findFirst({
-      where: {
-        isActive: true,
-        OR: [
-          { id: params.id },
-          { slug: params.id },
-          { productId: params.id },
-        ],
-      },
+      where,
       include: {
         units: {
           where: { status: "AVAILABLE" },

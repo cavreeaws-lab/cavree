@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
 import { validate, bulkCartItemSchema } from "@/lib/validators"
+import { getAdminScope } from "@/lib/admin"
 
 export const dynamic = "force-dynamic"
 
@@ -37,6 +38,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
+    const scope = await getAdminScope(session)
     const body = await request.json()
     const validation = validate(bulkCartItemSchema, body)
     if (!validation.success) {
@@ -49,6 +51,9 @@ export async function POST(request: NextRequest) {
     })
     if (!product || !product.isActive) {
       return NextResponse.json({ error: "Product not available" }, { status: 404 })
+    }
+    if (scope.franchiseId && (product as any).franchiseId && (product as any).franchiseId !== scope.franchiseId) {
+      return NextResponse.json({ error: "Product not available for your franchise" }, { status: 403 })
     }
     if (validation.data.unitCount < product.minUnits) {
       return NextResponse.json({ error: `Minimum ${product.minUnits} unit(s) required` }, { status: 400 })

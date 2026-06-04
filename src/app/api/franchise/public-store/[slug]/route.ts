@@ -16,7 +16,7 @@ export async function GET(
     const limit = parseInt(searchParams.get("limit") || "12")
 
     const franchise = await prisma.franchise.findUnique({
-      where: { slug: params.slug, isActive: true },
+      where: { slug: params.slug, isActive: true, isApproved: true },
       select: {
         id: true,
         name: true,

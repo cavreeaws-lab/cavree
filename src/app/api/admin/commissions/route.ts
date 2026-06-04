@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest) {
     if (body.creditId) {
       const credit = await prisma.commissionCredit.update({
         where: { id: String(body.creditId) },
-        data: { status: body.status || "APPROVED", notes: body.notes || undefined },
+        data: { status: (body.status || "APPROVED") as any, notes: body.notes || undefined },
       })
       await logActivity({
         userId: session.userId as string,

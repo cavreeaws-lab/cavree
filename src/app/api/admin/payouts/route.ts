@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     if (!franchise) return NextResponse.json({ error: "No franchise found" }, { status: 400 })
 
     const payout = await prisma.$transaction(async (tx: any) => {
-      const [ordersAgg, payoutsAgg] = await Promise.all([
+      const [ordersAgg, payoutsAgg, returnsAgg] = await Promise.all([
         tx.order.aggregate({
           where: {
             franchiseId: franchise.id,
@@ -64,14 +64,22 @@ export async function POST(request: NextRequest) {
           _sum: { total: true },
         }),
         tx.payout.aggregate({
-          where: { franchiseId: franchise.id, status: { in: ["PENDING", "APPROVED", "PAID"] } },
+          where: { franchiseId: franchise.id, status: { in: ["PENDING", "APPROVED", "PAID"] } as any },
           _sum: { amount: true },
+        }),
+        tx.returnRequest.aggregate({
+          where: {
+            order: { franchiseId: franchise.id },
+            status: "APPROVED",
+          },
+          _sum: { order: { total: true } },
         }),
       ])
       const franchiseRecord = await tx.franchise.findUnique({ where: { id: franchise.id }, select: { commission: true } })
       const grossCompleted = ordersAgg._sum.total || 0
       const commissionRate = (franchiseRecord?.commission || 10) / 100
-      const available = Math.max(0, grossCompleted - grossCompleted * commissionRate - (payoutsAgg._sum.amount || 0))
+      const returnDeductions = returnsAgg._sum?.total || 0
+      const available = Math.max(0, grossCompleted - returnDeductions - (grossCompleted - returnDeductions) * commissionRate - (payoutsAgg._sum.amount || 0))
       if (available < amount) {
         throw new Error("Insufficient balance")
       }
@@ -80,7 +88,7 @@ export async function POST(request: NextRequest) {
           amount,
           method: method || "BANK_TRANSFER",
           accountDetails: accountDetails || null,
-          status: "PENDING",
+          status: "PENDING" as any,
           franchiseId: franchise.id,
           userId: session.userId as string,
         },

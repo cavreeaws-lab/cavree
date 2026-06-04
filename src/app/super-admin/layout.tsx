@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useAuth } from "@/hooks/useAuth"
 import { useMemo, useState } from "react"
 import {
   LayoutDashboard,
@@ -45,11 +46,24 @@ export default function SuperAdminLayout({
 }) {
   const pathname = usePathname()
   const [showNotifications, setShowNotifications] = useState(false)
+  const { user, loading } = useAuth()
   const currentItem = navItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
   const breadcrumbs = useMemo(() => {
     const parts = pathname.split("/").filter(Boolean).slice(1)
     return ["Super Admin", ...parts.map((part) => part.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()))]
   }, [pathname])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cavree-primary" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

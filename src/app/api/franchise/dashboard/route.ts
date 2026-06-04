@@ -1,32 +1,35 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
+import { getAdminScope } from "@/lib/admin"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
     const session = await requireAuth(["FRANCHISEE", "ADMIN", "SUPER_ADMIN", "FRANCHISE_STAFF"])
-    const userId = session.userId as string
-    const isFranchise = session.role === "FRANCHISEE"
+    const scope = await getAdminScope(session)
 
-    const franchise = await prisma.franchise.findFirst({
-      where: isFranchise ? { ownerId: userId } : {},
-      orderBy: { createdAt: "desc" },
-    })
+    if (scope.isFranchiseScoped && !scope.franchiseId) {
+      return NextResponse.json({ error: "No franchise found" }, { status: 400 })
+    }
 
-    const [orders, cart, products] = await Promise.all([
+    const franchise = scope.franchiseId
+      ? await prisma.franchise.findUnique({ where: { id: scope.franchiseId } })
+      : null
+
+    const where: any = scope.franchiseId ? { franchiseId: scope.franchiseId } : {}
+    const [orders, products] = await Promise.all([
       prisma.order.findMany({
-        where: isFranchise ? { userId } : {},
+        where,
         orderBy: { createdAt: "desc" },
         take: 5,
         include: { items: true },
       }),
-      prisma.cart.findUnique({ where: { userId }, include: { items: true } }),
       prisma.product.count({
         where: {
           isActive: true,
-          ...(franchise?.id ? { franchiseId: franchise.id } : {}),
+          ...(scope.franchiseId ? { franchiseId: scope.franchiseId } : {}),
         },
       }),
     ])
@@ -50,7 +53,7 @@ export async function GET() {
         orders: orders.length,
         totalSpend,
         totalItems,
-        cartItems: cart?.items.length || 0,
+        cartItems: 0,
         activeProducts: products,
       },
       recentOrders: orders.map((order) => ({

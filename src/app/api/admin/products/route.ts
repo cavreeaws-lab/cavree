@@ -119,10 +119,16 @@ export async function POST(request: NextRequest) {
     if (!franchiseId) {
       return NextResponse.json({ error: "Franchise ID is required" }, { status: 400 })
     }
+    let slug = data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "")
+    const existingSlug = await prisma.product.findUnique({ where: { slug } })
+    if (existingSlug) {
+      slug = `${slug}-${Date.now()}`
+    }
+
     const product = await prisma.product.create({
       data: {
         name: data.name,
-        slug: data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, ""),
+        slug,
         description: data.description,
         modelNumber: data.modelNumber || null,
         productType: data.productType || null,

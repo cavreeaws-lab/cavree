@@ -23,9 +23,9 @@ export async function PATCH(
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
-    if (order.status !== "PENDING") {
+    if (order.status !== "PENDING" && order.status !== "CONFIRMED") {
       return NextResponse.json(
-        { error: "Only pending orders can be cancelled" },
+        { error: "Only pending or confirmed orders can be cancelled" },
         { status: 400 }
       )
     }
@@ -46,6 +46,20 @@ export async function PATCH(
         }
       }
 
+      // Reverse coupon usage
+      if (order.couponCode) {
+        const coupon = await tx.coupon.findUnique({ where: { code: order.couponCode } })
+        if (coupon) {
+          await tx.coupon.update({
+            where: { id: coupon.id },
+            data: { usageCount: { decrement: 1 } },
+          })
+          await tx.couponUsage.deleteMany({
+            where: { couponId: coupon.id, userId: session.userId as string, orderId: order.id },
+          })
+        }
+      }
+
       // Update order status
       await tx.order.update({
         where: { id: params.id },
@@ -53,10 +67,14 @@ export async function PATCH(
       })
 
       // Update payment status if exists
-      await tx.payment.updateMany({
-        where: { orderId: params.id },
-        data: { status: "REFUNDED" },
-      })
+      const payment = await tx.payment.findFirst({ where: { orderId: params.id } })
+      if (payment) {
+        const paymentStatus = payment.method === "RAZORPAY" && payment.status === "COMPLETED" ? "REFUNDED" : "FAILED"
+        await tx.payment.updateMany({
+          where: { orderId: params.id },
+          data: { status: paymentStatus },
+        })
+      }
 
       // Update shipping status if exists
       await tx.shipping.updateMany({

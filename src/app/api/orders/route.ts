@@ -106,11 +106,20 @@ export async function POST(request: NextRequest) {
     let subtotal = 0
     const orderItemsData: any[] = []
 
+    let firstFranchiseId: string | null = null
     for (const item of items as any[]) {
       const product: any = productMap.get(item.productId)
       if (!product) {
         return NextResponse.json(
           { error: `Product ${item.productId} not found` },
+          { status: 400 }
+        )
+      }
+      if (firstFranchiseId === null) {
+        firstFranchiseId = product.franchiseId
+      } else if (product.franchiseId !== firstFranchiseId) {
+        return NextResponse.json(
+          { error: "All items in an order must be from the same franchise" },
           { status: 400 }
         )
       }
@@ -243,6 +252,18 @@ export async function POST(request: NextRequest) {
             throw new Error(`Insufficient stock for product ${item.productId}`)
           }
         }
+        // Also decrement franchise-level stock
+        if (franchiseId) {
+          const franchiseStock = await tx.productFranchiseStock.findUnique({
+            where: { productId_franchiseId: { productId: item.productId, franchiseId } },
+          })
+          if (franchiseStock) {
+            await tx.productFranchiseStock.update({
+              where: { id: franchiseStock.id },
+              data: { quantity: { decrement: item.quantity } },
+            })
+          }
+        }
       }
 
       if (appliedCoupon) {
@@ -259,10 +280,14 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      const isCod = paymentMethod === "COD"
+      const orderStatus = isCod ? (autoAccepted ? "CONFIRMED" : "PENDING") : "PENDING"
+      const paymentStatus = isCod ? "COMPLETED" : "PENDING"
+
       return await tx.order.create({
         data: {
           orderNumber,
-          status: autoAccepted ? "CONFIRMED" : "PENDING",
+          status: orderStatus,
           subtotal,
           discount,
           shipping,
@@ -280,8 +305,8 @@ export async function POST(request: NextRequest) {
           payment: {
             create: {
               amount: total,
-              method: paymentMethod === "COD" ? "COD" : "RAZORPAY",
-              status: "PENDING",
+              method: isCod ? "COD" : "RAZORPAY",
+              status: paymentStatus,
             },
           },
           shippingDetail: {

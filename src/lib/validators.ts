@@ -16,7 +16,6 @@ export const registerSchema = z.object({
   password: passwordSchema,
   name: z.string().min(1, "Name is required"),
   phone: z.string().optional(),
-  role: z.enum(["CUSTOMER", "FRANCHISEE", "SALES_EXECUTIVE", "ADMIN", "SUPER_ADMIN"]).optional(),
 })
 
 export const profileUpdateSchema = z.object({

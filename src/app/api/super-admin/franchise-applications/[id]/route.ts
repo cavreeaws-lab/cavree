@@ -69,16 +69,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         },
       })
 
+      const parsedNotes = application.notes ? JSON.parse(application.notes) : {}
       const franchise = await tx.franchise.create({
         data: {
-          name: `${application.name} - ${application.city}`,
+          name: parsedNotes.businessName || `${application.name} - ${application.city}`,
           slug: `${application.city.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
           description: `Franchise application approved. Investment: ${application.investment}, Space: ${application.space}`,
           city: application.city,
-          state: "",
+          state: parsedNotes.state || "",
           phone: application.phone,
           email: application.email,
-          address: "",
+          address: parsedNotes.address || "",
           isActive: true,
           isApproved: true,
           ownerId: user.id,

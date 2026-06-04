@@ -28,6 +28,11 @@ export async function POST(request: NextRequest) {
         include: { order: true },
       })
       if (payment && payment.status !== "COMPLETED") {
+        const order = await prisma.order.findUnique({ where: { id: payment.orderId } })
+        const orderUpdateData: any = { status: "CONFIRMED" }
+        if (order && order.status !== "PENDING" && order.status !== "CONFIRMED") {
+          orderUpdateData.status = order.status
+        }
         await prisma.$transaction([
           prisma.payment.update({
             where: { id: payment.id },
@@ -43,7 +48,7 @@ export async function POST(request: NextRequest) {
           }),
           prisma.order.update({
             where: { id: payment.orderId },
-            data: { status: "CONFIRMED" },
+            data: orderUpdateData,
           }),
         ])
       }
